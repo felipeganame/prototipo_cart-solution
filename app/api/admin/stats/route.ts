@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const decoded = verifyToken(token) as any
+    const decoded = await verifyToken(token) as any
+    console.log("Admin stats - decoded token:", decoded)
     if (!decoded || decoded.role !== "admin") {
+      console.log("Admin stats - access denied. Role:", decoded?.role)
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 })
     }
 

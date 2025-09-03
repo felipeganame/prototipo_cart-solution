@@ -64,10 +64,17 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
+      console.log("Fetching admin stats...")
       const response = await fetch("/api/admin/stats")
+      console.log("Stats response status:", response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log("Stats data received:", data)
         setStats(data)
+      } else {
+        const errorData = await response.text()
+        console.error("Stats API error:", response.status, errorData)
       }
     } catch (error) {
       console.error("Error fetching stats:", error)
@@ -78,11 +85,14 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
+      console.log("Logging out admin user")
       await fetch("/api/auth/logout", { method: "POST" })
-      router.push("/")
+      // Forzar navegación al login con parámetro especial
+      window.location.href = "/login?logout=1"
     } catch (error) {
       console.error("Logout error:", error)
-      router.push("/")
+      // En caso de error, forzar navegación
+      window.location.href = "/login?logout=1"
     }
   }
 
@@ -97,9 +107,33 @@ export default function AdminDashboard() {
     )
   }
 
-  if (!user || !stats) {
+  if (!user) {
     return null
   }
+
+  // Mostrar dashboard aunque no haya stats (con valores por defecto)
+  const defaultStats = {
+    users: {
+      total_users: 0,
+      active_users: 0,
+      overdue_users: 0,
+      new_users_month: 0
+    },
+    stores: {
+      total_stores: 0,
+      active_stores: 0
+    },
+    products: {
+      total_products: 0
+    },
+    revenue: {
+      monthly_revenue: 0,
+      paying_users: 0
+    },
+    planBreakdown: []
+  }
+
+  const currentStats = stats || defaultStats
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -117,6 +151,11 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">Bienvenido, {user.email}</span>
+            <Button variant="ghost" size="sm" asChild>
+              <a href="/" target="_blank" rel="noopener noreferrer">
+                Ver Sitio Web
+              </a>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
               Cerrar Sesión
@@ -127,9 +166,17 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+                <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Dashboard de Administrador</h2>
-          <p className="text-muted-foreground">Gestiona todos los aspectos de Pedi Solutions</p>
+          <p className="text-muted-foreground">Panel de control y estadísticas del sistema</p>
+          {!stats && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 text-yellow-800">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-sm font-medium">Advertencia: No se pudieron cargar las estadísticas en tiempo real. Se muestran valores por defecto.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -140,8 +187,8 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.users.active_users}</div>
-              <p className="text-xs text-muted-foreground">{stats.users.new_users_month} nuevos este mes</p>
+              <div className="text-2xl font-bold">{currentStats.users.active_users}</div>
+              <p className="text-xs text-muted-foreground">{currentStats.users.new_users_month} nuevos este mes</p>
             </CardContent>
           </Card>
 
@@ -151,8 +198,8 @@ export default function AdminDashboard() {
               <Store className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.stores.active_stores}</div>
-              <p className="text-xs text-muted-foreground">de {stats.stores.total_stores} registradas</p>
+              <div className="text-2xl font-bold">{currentStats.stores.active_stores}</div>
+              <p className="text-xs text-muted-foreground">de {currentStats.stores.total_stores} registradas</p>
             </CardContent>
           </Card>
 
@@ -162,8 +209,8 @@ export default function AdminDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.revenue.monthly_revenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">{stats.revenue.paying_users} usuarios pagando</p>
+              <div className="text-2xl font-bold">${currentStats.revenue.monthly_revenue.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">{currentStats.revenue.paying_users} usuarios pagando</p>
             </CardContent>
           </Card>
 
@@ -173,7 +220,7 @@ export default function AdminDashboard() {
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">{stats.users.overdue_users}</div>
+              <div className="text-2xl font-bold text-destructive">{currentStats.users.overdue_users}</div>
               <p className="text-xs text-muted-foreground">Requieren atención inmediata</p>
             </CardContent>
           </Card>
@@ -188,7 +235,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {stats.planBreakdown.map((plan) => (
+                {currentStats.planBreakdown.map((plan) => (
                   <div key={plan.plan_name} className="flex items-center justify-between">
                     <div>
                       <div className="font-medium">{plan.plan_name}</div>
@@ -213,16 +260,18 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Total de Usuarios</span>
-                  <span className="font-medium">{stats.users.total_users}</span>
+                  <span className="font-medium">{currentStats.users.total_users}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Total de Productos</span>
-                  <span className="font-medium">{stats.products.total_products}</span>
+                  <span className="font-medium">{currentStats.products.total_products}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Tasa de Actividad</span>
                   <span className="font-medium">
-                    {Math.round((stats.users.active_users / stats.users.total_users) * 100)}%
+                    {currentStats.users.total_users > 0 
+                      ? Math.round((currentStats.users.active_users / currentStats.users.total_users) * 100)
+                      : 0}%
                   </span>
                 </div>
               </div>

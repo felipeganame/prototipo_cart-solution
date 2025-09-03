@@ -31,25 +31,16 @@ export function CTASection() {
             <Button
               size="lg"
               className="text-lg px-8 py-6 group bg-accent hover:bg-accent/90"
-              onClick={() => openAuthModal("register")}
-            >
-              <Zap className="w-5 h-5 mr-2" />
-              Pruébalo Gratis 30 Días
-              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="text-lg px-8 py-6 bg-transparent"
               onClick={() => {
-                const element = document.getElementById("contact")
-                if (element) {
-                  element.scrollIntoView({ behavior: "smooth" })
-                }
+              const phoneNumber = "5493513363008"; // Replace with actual WhatsApp number
+              const message = "Hola! Me interesa tu servicio y me gustaría conocer más para implementarlo.";
+              const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+              window.open(whatsappUrl, '_blank');
               }}
             >
-              Hablar con Ventas
+              <Zap className="w-5 h-5 mr-2" />
+              Hablar con ventas
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
 

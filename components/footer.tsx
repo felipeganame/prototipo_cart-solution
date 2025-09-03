@@ -174,7 +174,7 @@ export function Footer() {
                       </div>
                       <div>
                         <p className="font-medium text-foreground">WhatsApp</p>
-                        <p className="text-muted-foreground">+57 300 123 4567</p>
+                        <p className="text-muted-foreground">+54 9 351 336 3008</p>
                       </div>
                     </div>
 
@@ -184,7 +184,7 @@ export function Footer() {
                       </div>
                       <div>
                         <p className="font-medium text-foreground">Email</p>
-                        <p className="text-muted-foreground">hola@pedisolutions.com</p>
+                        <p className="text-muted-foreground">ventas@pedisolutions.com</p>
                       </div>
                     </div>
 
@@ -194,7 +194,7 @@ export function Footer() {
                       </div>
                       <div>
                         <p className="font-medium text-foreground">Oficina</p>
-                        <p className="text-muted-foreground">Bogotá, Colombia</p>
+                        <p className="text-muted-foreground">Córdoba, Argentina</p>
                       </div>
                     </div>
                   </div>

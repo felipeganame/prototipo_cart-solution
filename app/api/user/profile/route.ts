@@ -21,17 +21,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Token inválido" }, { status: 401 })
     }
 
-    // Obtener información completa del usuario con plan
+    // Obtener información completa del usuario con plan (solo para usuarios normales, no admin)
     console.log("Querying user with ID:", decoded.userId)
-    const userQuery = `
-      SELECT u.*, up.name as plan_name, up.price as plan_price, 
-             up.max_stores, up.max_products_per_store, up.max_categories_per_store, up.features
-      FROM users u
-      LEFT JOIN user_plans up ON u.plan_id = up.id
-      WHERE u.id = ? AND u.is_active = TRUE
-    `
+    let userQuery, userQueryParams
+    
+    if (decoded.role === 'admin') {
+      // Para administradores, no necesitamos información de plan
+      userQuery = `
+        SELECT u.*, NULL as plan_name, NULL as plan_price, 
+               NULL as max_stores, NULL as max_products_per_store, NULL as max_categories_per_store, NULL as features
+        FROM users u
+        WHERE u.id = ? AND u.is_active = TRUE AND u.role = 'admin'
+      `
+      userQueryParams = [decoded.userId]
+    } else {
+      // Para usuarios normales, obtenemos información del plan
+      userQuery = `
+        SELECT u.*, up.name as plan_name, up.price as plan_price, 
+               up.max_stores, up.max_products_per_store, up.max_categories_per_store, up.features
+        FROM users u
+        LEFT JOIN user_plans up ON u.plan_id = up.id
+        WHERE u.id = ? AND u.is_active = TRUE AND u.role = 'user'
+      `
+      userQueryParams = [decoded.userId]
+    }
 
-    const userResults = (await executeQuery(userQuery, [decoded.userId])) as any[]
+    const userResults = (await executeQuery(userQuery, userQueryParams)) as any[]
     console.log("User query results:", userResults)
 
     if (userResults.length === 0) {
@@ -41,11 +56,14 @@ export async function GET(request: NextRequest) {
 
     const user = userResults[0]
 
-    // Obtener tiendas del usuario
-    console.log("Querying stores for user:", decoded.userId)
-    const storesQuery = `SELECT * FROM stores WHERE user_id = ? AND is_active = TRUE`
-    const stores = await executeQuery(storesQuery, [decoded.userId])
-    console.log("Stores query results:", stores)
+    // Obtener tiendas del usuario (solo para usuarios normales, no admin)
+    let stores: any[] = []
+    if (user.role === 'user') {
+      console.log("Querying stores for user:", decoded.userId)
+      const storesQuery = `SELECT * FROM stores WHERE user_id = ? AND is_active = TRUE`
+      stores = (await executeQuery(storesQuery, [decoded.userId])) as any[]
+      console.log("Stores query results:", stores)
+    }
 
     return NextResponse.json({
       user: {

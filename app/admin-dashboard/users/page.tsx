@@ -38,25 +38,66 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [user, setUser] = useState<any>(null)
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
-    fetchUsers()
-  }, [currentPage, statusFilter])
+    checkAuth()
+  }, [])
 
   useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      if (currentPage === 1) {
-        fetchUsers()
+    if (authChecked && user) {
+      fetchUsers()
+    }
+  }, [currentPage, statusFilter, authChecked, user])
+
+  useEffect(() => {
+    if (authChecked && user) {
+      const delayedSearch = setTimeout(() => {
+        if (currentPage === 1) {
+          fetchUsers()
+        } else {
+          setCurrentPage(1)
+        }
+      }, 500)
+
+      return () => clearTimeout(delayedSearch)
+    }
+  }, [searchTerm, authChecked, user])
+
+  const checkAuth = async () => {
+    try {
+      console.log("Checking admin authentication...")
+      const response = await fetch("/api/user/profile")
+      if (response.ok) {
+        const data = await response.json()
+        console.log("User data:", data.user)
+        if (data.user.role !== "admin") {
+          console.log("User is not admin, redirecting to login")
+          router.push("/login")
+          return
+        }
+        setUser(data.user)
+        console.log("Admin authentication successful")
       } else {
-        setCurrentPage(1)
+        console.log("Authentication failed, redirecting to login")
+        router.push("/login")
+        return
       }
-    }, 500)
-
-    return () => clearTimeout(delayedSearch)
-  }, [searchTerm])
+    } catch (error) {
+      console.error("Error checking authentication:", error)
+      router.push("/login")
+      return
+    } finally {
+      setAuthChecked(true)
+    }
+  }
 
   const fetchUsers = async () => {
+    if (!user) return
+    
     try {
+      console.log("Fetching users...")
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
@@ -65,12 +106,19 @@ export default function AdminUsersPage() {
       })
 
       const response = await fetch(`/api/admin/users?${params}`)
+      console.log("Users API response status:", response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        setUsers(data.users)
-        setTotalPages(data.pagination.totalPages)
+        console.log("Users data received:", data)
+        setUsers(data.users || [])
+        setTotalPages(data.pagination?.totalPages || 1)
       } else if (response.status === 403) {
+        console.log("Access denied, redirecting to login")
         router.push("/login")
+      } else {
+        const errorData = await response.text()
+        console.error("Users API error:", response.status, errorData)
       }
     } catch (error) {
       console.error("Error fetching users:", error)
@@ -150,15 +198,19 @@ export default function AdminUsersPage() {
     }).format(amount)
   }
 
-  if (isLoading) {
+  if (!authChecked || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p>Cargando usuarios...</p>
+          <p>{!authChecked ? "Verificando autenticación..." : "Cargando usuarios..."}</p>
         </div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (

@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { SubscriptionStatusComponent } from "@/components/subscription-status"
 import { QrCode, Package, BarChart3, Settings, LogOut, Plus, Store } from "lucide-react"
 
 interface UserData {
@@ -127,6 +128,11 @@ export default function UserDashboard() {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Mi Dashboard</h2>
           <p className="text-muted-foreground">Gestiona tu negocio y pedidos desde aquí</p>
+        </div>
+
+        {/* Estado de Suscripción */}
+        <div className="mb-8">
+          <SubscriptionStatusComponent />
         </div>
 
         {stores.length > 0 && (

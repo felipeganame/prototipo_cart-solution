@@ -28,6 +28,12 @@ export interface User {
   is_active: boolean
   subscription_start: string
   subscription_end: string
+  fecha_inicio_suscripcion?: string
+  dia_vencimiento?: number
+  ultimo_pago?: string
+  estado_suscripcion: "Activo" | "En deuda" | "En gracia" | "Bloqueado Parcial"
+  fecha_proximo_vencimiento?: string
+  dias_gracia_restantes: number
   last_payment_date?: string
   payment_status: "paid" | "pending" | "overdue"
   created_at: string
@@ -102,4 +108,37 @@ export interface OrderItem {
   total_price: number
   created_at: string
   product?: Product
+}
+
+export interface PaymentHistory {
+  id: number
+  user_id: number
+  fecha_pago: string
+  monto: number
+  metodo_pago: "manual" | "automatico"
+  periodo_pagado: string
+  estado_anterior?: "Activo" | "En deuda" | "En gracia" | "Bloqueado Parcial"
+  estado_nuevo: "Activo" | "En deuda" | "En gracia" | "Bloqueado Parcial"
+  notas?: string
+  created_at: string
+}
+
+export interface SubscriptionNotification {
+  id: number
+  user_id: number
+  tipo_notificacion: "preventivo" | "vencimiento" | "gracia" | "suspension"
+  fecha_notificacion: string
+  dias_restantes?: number
+  mensaje: string
+  enviada: boolean
+  fecha_envio?: string
+  created_at: string
+}
+
+export interface SubscriptionStatus {
+  estado: "Activo" | "En deuda" | "En gracia" | "Bloqueado Parcial"
+  dias_restantes?: number
+  fecha_proximo_vencimiento?: string
+  mensaje?: string
+  puede_acceder_qr: boolean
 }

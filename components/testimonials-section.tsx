@@ -7,7 +7,7 @@ const testimonials = [
   {
     name: "Carlos Mendoza",
     business: "Licorería El Buen Gusto",
-    location: "Bogotá",
+    location: "Córdoba, Argentina",
     rating: 5,
     text: "Desde que implementamos Pedi Solutions, nuestras ventas aumentaron un 40%. Los clientes aman la facilidad de hacer pedidos con el código QR.",
     avatar: "/carlos-mendoza-avatar.png",
@@ -15,7 +15,7 @@ const testimonials = [
   {
     name: "María González",
     business: "Minimarket La Esquina",
-    location: "Medellín",
+    location: "Córdoba, Argentina",
     rating: 5,
     text: "La configuración fue súper fácil y el soporte es excelente. Ahora recibo pedidos hasta cuando la tienda está cerrada.",
     avatar: "/maria-gonzalez-avatar.png",
@@ -23,7 +23,7 @@ const testimonials = [
   {
     name: "Roberto Silva",
     business: "Distribuidora Silva",
-    location: "Cali",
+    location: "Córdoba, Argentina",
     rating: 5,
     text: "Tengo 3 sucursales y Pedi Solutions me permite manejar todas desde una sola plataforma. Los reportes son muy útiles.",
     avatar: "/roberto-silva-avatar.png",

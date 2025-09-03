@@ -56,19 +56,34 @@ export async function GET(request: NextRequest) {
         u.is_active,
         u.subscription_start,
         u.subscription_end,
+        u.fecha_inicio_suscripcion,
+        u.dia_vencimiento,
+        u.ultimo_pago,
+        u.estado_suscripcion,
+        u.fecha_proximo_vencimiento,
+        u.dias_gracia_restantes,
         u.last_payment_date,
         u.payment_status,
         u.created_at,
         up.name as plan_name,
         up.price as plan_price,
         COUNT(s.id) as store_count,
-        DATEDIFF(u.subscription_end, CURDATE()) as days_until_expiry
+        DATEDIFF(COALESCE(u.fecha_proximo_vencimiento, u.subscription_end), CURDATE()) as days_until_expiry
       FROM users u
       LEFT JOIN user_plans up ON u.plan_id = up.id
       LEFT JOIN stores s ON u.id = s.user_id AND s.is_active = TRUE
       ${whereClause}
       GROUP BY u.id
-      ORDER BY u.created_at DESC
+      ORDER BY 
+        CASE COALESCE(u.estado_suscripcion, 'Activo')
+          WHEN 'Bloqueado Parcial' THEN 1
+          WHEN 'En gracia' THEN 2
+          WHEN 'En deuda' THEN 3
+          WHEN 'Activo' THEN 4
+          ELSE 5
+        END,
+        u.fecha_proximo_vencimiento ASC,
+        u.created_at DESC
       LIMIT ? OFFSET ?
     `
 

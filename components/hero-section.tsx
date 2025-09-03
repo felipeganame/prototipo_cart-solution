@@ -34,7 +34,7 @@ export function HeroSection() {
 
             <p className="text-xl text-muted-foreground mb-8 text-pretty leading-relaxed">
               Permite que tus clientes armen sus pedidos escaneando un código QR y generen automáticamente mensajes de
-              WhatsApp con su orden. Perfecto para licorerías, tiendas y cualquier punto de venta.
+              WhatsApp con su orden. Perfecto para licorerías, bares, restaurantes, tiendas y cualquier punto de venta.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">

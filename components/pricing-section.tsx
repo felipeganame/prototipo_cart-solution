@@ -6,50 +6,55 @@ import { Check, Star, Zap } from "lucide-react"
 
 const plans = [
   {
-    name: "Básico",
-    price: "$29.900",
+    name: "Primera Sucursal",
+    price: "$20.000",
     period: "/mes",
-    description: "Perfecto para empezar",
-    features: [
-      "Hasta 100 productos",
-      "Código QR personalizado",
-      "Integración WhatsApp",
-      "Reportes básicos",
-      "Soporte por email",
-    ],
-    popular: false,
-    cta: "Comenzar Gratis",
-  },
-  {
-    name: "Profesional",
-    price: "$59.900",
-    period: "/mes",
-    description: "Para negocios en crecimiento",
+    description: "Todo lo que necesitas para empezar",
     features: [
       "Productos ilimitados",
-      "Múltiples códigos QR",
-      "WhatsApp Business API",
+      "Código QR personalizado",
+      "Integración WhatsApp",
       "Reportes avanzados",
-      "Soporte prioritario",
       "Personalización de marca",
-      "Integración con POS",
+      "Soporte prioritario",
+      "Análisis de ventas",
+      "Integración POS",
     ],
     popular: true,
-    cta: "Prueba 30 días gratis",
+    cta: "Iniciar Prueba Gratuita",
+  },
+  {
+    name: "Sucursales Adicionales",
+    price: "$10.000",
+    period: "/mes c/u",
+    description: "Expande tu negocio sin límites",
+    features: [
+      "Todas las funciones incluidas",
+      "Gestión centralizada",
+      "Reportes consolidados",
+      "Códigos QR independientes",
+      "WhatsApp por ubicación",
+      "Dashboard unificado",
+      "Estadísticas comparativas",
+      "Soporte dedicado",
+    ],
+    popular: false,
+    cta: "Agregar Sucursal",
   },
   {
     name: "Empresarial",
-    price: "$99.900",
-    period: "/mes",
-    description: "Para múltiples ubicaciones",
+    price: "Cotización",
+    period: "personalizada",
+    description: "Solución a medida para grandes empresas",
     features: [
-      "Todo lo del plan Profesional",
-      "Múltiples sucursales",
+      "Sucursales ilimitadas",
       "API personalizada",
-      "Análisis predictivo",
-      "Soporte 24/7",
-      "Capacitación personalizada",
-      "Integración ERP",
+      "Integración ERP completa",
+      "Análisis predictivo avanzado",
+      "Soporte 24/7 dedicado",
+      "Capacitación especializada",
+      "Desarrollo de funcionalidades",
+      "SLA garantizado",
     ],
     popular: false,
     cta: "Contactar Ventas",
@@ -67,11 +72,19 @@ export function PricingSection() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16 animate-fade-in-up">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4 text-balance">
-            Planes que se adaptan a tu negocio
+            Precios simples y transparentes
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto text-pretty">
-            Comienza gratis y escala según crezca tu negocio. Sin compromisos, cancela cuando quieras.
+            Prueba gratis durante un mes completo, sin tarjeta de crédito. Solo pagas cuando decidas continuar.
           </p>
+          <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl border border-green-200 dark:border-green-800">
+            <p className="text-lg font-semibold text-green-800 dark:text-green-300 mb-2">
+              🎉 Promoción de Lanzamiento
+            </p>
+            <p className="text-sm text-green-700 dark:text-green-400">
+              Primer mes completamente GRATIS • Sin tarjeta de crédito • Cancela cuando quieras
+            </p>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -127,13 +140,33 @@ export function PricingSection() {
 
         {/* Free Trial Banner */}
         <div className="mt-16 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 rounded-2xl p-8 text-center animate-fade-in-up">
-          <h3 className="text-2xl font-bold text-foreground mb-4">¿No estás seguro? ¡Pruébalo gratis!</h3>
+          <h3 className="text-2xl font-bold text-foreground mb-4">¿Listo para revolucionar tu negocio?</h3>
           <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Todos nuestros planes incluyen 30 días de prueba gratuita. No necesitas tarjeta de crédito para comenzar.
+            <strong>Primer mes completamente GRATIS</strong> - No necesitas tarjeta de crédito para comenzar. 
+            Después, solo $20.000 por tu primera sucursal y $10.000 por cada adicional.
           </p>
+          <div className="mb-6 p-4 bg-white/50 dark:bg-black/20 rounded-xl">
+            <div className="flex items-center justify-center gap-8 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span>Sin tarjeta de crédito</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span>Cancela cuando quieras</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span>Soporte incluido</span>
+              </div>
+            </div>
+          </div>
           <Button size="lg" className="text-lg px-8 py-6" onClick={() => openAuthModal("register")}>
-            Comenzar Prueba Gratuita
+            Comenzar Prueba Gratuita - 1 Mes
           </Button>
+          <p className="text-xs text-muted-foreground mt-3">
+            Al finalizar tu prueba gratuita, continúas con solo $20.000/mes
+          </p>
         </div>
       </div>
     </section>

@@ -1,19 +1,22 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, LogIn, Eye, EyeOff } from "lucide-react"
+import { ArrowLeft, LogIn, Eye, EyeOff, CheckCircle } from "lucide-react"
 // import GoogleRecaptcha from "@/components/google-recaptcha"
 import { useFormValidation, validationPatterns } from "@/components/form-validation"
 import { cn } from "@/lib/utils"
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
+  const isLogout = searchParams?.get('logout') === '1'
   const { values, errors, touched, setValue, setFieldTouched, validateForm, validateSingleField } = useFormValidation({
     email: "",
     password: "",
@@ -22,8 +25,21 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loginError, setLoginError] = useState("")
+  const [showLogoutMessage, setShowLogoutMessage] = useState(false)
 
   const router = useRouter()
+
+  // Mostrar mensaje de logout exitoso y limpiar URL
+  useEffect(() => {
+    if (isLogout) {
+      setShowLogoutMessage(true)
+      // Limpiar la URL después de mostrar el mensaje
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/login')
+        setShowLogoutMessage(false)
+      }, 3000)
+    }
+  }, [isLogout])
 
   const validationRules = {
     email: {
@@ -102,6 +118,12 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
+            {showLogoutMessage && (
+              <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <p className="text-sm text-green-700">Has cerrado sesión exitosamente</p>
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"
