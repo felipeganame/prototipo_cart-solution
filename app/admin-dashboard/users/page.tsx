@@ -19,15 +19,15 @@ interface UserData {
   first_name: string
   last_name: string
   is_active: boolean
-  subscription_start: string
-  subscription_end: string
+  monthly_payment: number
+  max_stores: number
+  next_payment_due: string
+  days_overdue: number
   last_payment_date?: string
-  payment_status: "paid" | "pending" | "overdue"
+  payment_status: "al_dia" | "en_deuda" | "deshabilitado" | "paid" | "pending" | "overdue"
   created_at: string
-  plan_name: string
-  plan_price: number
   store_count: number
-  days_until_expiry: number
+  days_until_due: number
 }
 
 export default function AdminUsersPage() {
@@ -49,55 +49,33 @@ export default function AdminUsersPage() {
     if (authChecked && user) {
       fetchUsers()
     }
-  }, [currentPage, statusFilter, authChecked, user])
-
-  useEffect(() => {
-    if (authChecked && user) {
-      const delayedSearch = setTimeout(() => {
-        if (currentPage === 1) {
-          fetchUsers()
-        } else {
-          setCurrentPage(1)
-        }
-      }, 500)
-
-      return () => clearTimeout(delayedSearch)
-    }
-  }, [searchTerm, authChecked, user])
+  }, [authChecked, user, currentPage, searchTerm, statusFilter])
 
   const checkAuth = async () => {
     try {
-      console.log("Checking admin authentication...")
       const response = await fetch("/api/user/profile")
       if (response.ok) {
-        const data = await response.json()
-        console.log("User data:", data.user)
-        if (data.user.role !== "admin") {
-          console.log("User is not admin, redirecting to login")
-          router.push("/login")
-          return
+        const userData = await response.json()
+        if (userData.user && userData.user.role === "admin") {
+          setUser(userData.user)
+        } else {
+          console.log("User is not admin, redirecting to home")
+          router.push("/")
         }
-        setUser(data.user)
-        console.log("Admin authentication successful")
       } else {
-        console.log("Authentication failed, redirecting to login")
         router.push("/login")
-        return
       }
     } catch (error) {
-      console.error("Error checking authentication:", error)
+      console.error("Auth check error:", error)
       router.push("/login")
-      return
     } finally {
       setAuthChecked(true)
     }
   }
 
   const fetchUsers = async () => {
-    if (!user) return
-    
     try {
-      console.log("Fetching users...")
+      setIsLoading(true)
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
@@ -106,24 +84,45 @@ export default function AdminUsersPage() {
       })
 
       const response = await fetch(`/api/admin/users?${params}`)
-      console.log("Users API response status:", response.status)
-      
       if (response.ok) {
         const data = await response.json()
-        console.log("Users data received:", data)
         setUsers(data.users || [])
-        setTotalPages(data.pagination?.totalPages || 1)
-      } else if (response.status === 403) {
-        console.log("Access denied, redirecting to login")
-        router.push("/login")
+        setTotalPages(data.totalPages || 1)
       } else {
-        const errorData = await response.text()
-        console.error("Users API error:", response.status, errorData)
+        console.error("Failed to fetch users")
+        setUsers([])
       }
     } catch (error) {
       console.error("Error fetching users:", error)
+      setUsers([])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const markAsPaid = async (userId: number, currentPayment: number) => {
+    const newPayment = prompt(`Ingrese el monto del pago (actual: $${currentPayment})`, currentPayment.toString())
+    if (!newPayment || isNaN(parseFloat(newPayment))) return
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mark_as_paid: true,
+          monthly_payment: parseFloat(newPayment),
+        }),
+      })
+
+      if (response.ok) {
+        fetchUsers()
+      } else {
+        console.error("Failed to mark as paid")
+      }
+    } catch (error) {
+      console.error("Error marking as paid:", error)
     }
   }
 
@@ -147,7 +146,7 @@ export default function AdminUsersPage() {
     }
   }
 
-  const updatePaymentStatus = async (userId: number, status: "paid" | "pending" | "overdue") => {
+  const updatePaymentStatus = async (userId: number, status: "al_dia" | "en_deuda" | "deshabilitado") => {
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PUT",
@@ -168,155 +167,182 @@ export default function AdminUsersPage() {
   }
 
   const getStatusBadge = (user: UserData) => {
-    if (!user.is_active) {
-      return <Badge variant="secondary">Inactivo</Badge>
+    const statusMap = {
+      al_dia: { variant: "success" as const, text: "Al día", color: "bg-green-100 text-green-800" },
+      en_deuda: { variant: "warning" as const, text: "En deuda", color: "bg-yellow-100 text-yellow-800" },
+      deshabilitado: { variant: "destructive" as const, text: "Deshabilitado", color: "bg-red-100 text-red-800" },
+      paid: { variant: "success" as const, text: "Al día", color: "bg-green-100 text-green-800" },
+      pending: { variant: "warning" as const, text: "En deuda", color: "bg-yellow-100 text-yellow-800" },
+      overdue: { variant: "destructive" as const, text: "Deshabilitado", color: "bg-red-100 text-red-800" }
     }
-
-    if (user.payment_status === "overdue") {
-      return <Badge variant="destructive">En Deuda</Badge>
-    }
-
-    if (user.days_until_expiry <= 7 && user.days_until_expiry > 0) {
-      return <Badge variant="secondary">Por Vencer</Badge>
-    }
-
-    if (user.days_until_expiry <= 0) {
-      return <Badge variant="destructive">Vencido</Badge>
-    }
-
-    return <Badge variant="default">Activo</Badge>
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es-ES")
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("es-ES", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount)
-  }
-
-  if (!authChecked || isLoading) {
+    
+    const status = statusMap[user.payment_status] || statusMap.pending
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p>{!authChecked ? "Verificando autenticación..." : "Cargando usuarios..."}</p>
-        </div>
-      </div>
+      <Badge className={status.color}>
+        {status.text}
+      </Badge>
     )
   }
 
-  if (!user) {
-    return null
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString || dateString === 'null' || dateString === 'undefined') return "N/A"
+    
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return "N/A"
+      return date.toLocaleDateString("es-ES")
+    } catch (error) {
+      return "N/A"
+    }
+  }
+
+  const formatCurrency = (amount: number | null | undefined | string) => {
+    if (amount === null || amount === undefined) {
+      return "$0.00"
+    }
+    
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+    
+    if (isNaN(numAmount)) {
+      return "$0.00"
+    }
+    
+    return `$${numAmount.toFixed(2)}`
+  }
+
+  const getDaysDisplay = (user: UserData) => {
+    if (user.days_until_due > 0) {
+      return (
+        <div className="text-sm">
+          <div className="text-green-600">Vence en {user.days_until_due} días</div>
+          <div className="text-xs text-muted-foreground">{formatDate(user.next_payment_due)}</div>
+        </div>
+      )
+    } else if (user.days_until_due === 0) {
+      return (
+        <div className="text-sm">
+          <div className="text-yellow-600">Vence hoy</div>
+          <div className="text-xs text-muted-foreground">{formatDate(user.next_payment_due)}</div>
+        </div>
+      )
+    } else {
+      const overdueDays = Math.abs(user.days_until_due)
+      return (
+        <div className="text-sm">
+          <div className="text-red-600">Vencido hace {overdueDays} días</div>
+          <div className="text-xs text-muted-foreground">{formatDate(user.next_payment_due)}</div>
+        </div>
+      )
+    }
+  }
+
+  if (!authChecked) {
+    return <div className="flex justify-center items-center min-h-screen">Verificando autorización...</div>
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Link
-            href="/admin-dashboard"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver al Dashboard
-          </Link>
-
-          <h1 className="text-3xl font-bold mb-2">Gestión de Usuarios</h1>
-          <p className="text-muted-foreground">Administra todos los usuarios de la plataforma</p>
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
+            <p className="text-muted-foreground">Administra usuarios y sus suscripciones</p>
+          </div>
         </div>
+      </div>
 
-        {/* Filtros */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Filtros</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="Buscar por email, empresa o nombre..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="active">Activos</SelectItem>
-                  <SelectItem value="inactive">Inactivos</SelectItem>
-                  <SelectItem value="overdue">En Deuda</SelectItem>
-                </SelectContent>
-              </Select>
+      <Card>
+        <CardHeader>
+          <CardTitle>Usuarios Registrados</CardTitle>
+          <CardDescription>Lista completa de usuarios con toda su información</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre, email o empresa..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          </CardContent>
-        </Card>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filtrar por estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="al_dia">Al día</SelectItem>
+                <SelectItem value="en_deuda">En deuda</SelectItem>
+                <SelectItem value="deshabilitado">Deshabilitado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        {/* Tabla de usuarios */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Usuarios ({users.length})</CardTitle>
-            <CardDescription>Lista completa de usuarios registrados en la plataforma</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="text-center py-8">Cargando usuarios...</div>
+          ) : (
+            <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Usuario</TableHead>
                     <TableHead>Empresa</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Registro</TableHead>
-                    <TableHead>Vencimiento</TableHead>
+                    <TableHead>Pago Mensual</TableHead>
                     <TableHead>Tiendas</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Próximo Vencimiento</TableHead>
+                    <TableHead>Último Pago</TableHead>
+                    <TableHead>Registro</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
+                  {users.map((userData) => (
+                    <TableRow key={userData.id}>
                       <TableCell>
                         <div>
                           <div className="font-medium">
-                            {user.first_name} {user.last_name}
+                            {userData.first_name} {userData.last_name}
                           </div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                          <div className="text-sm text-muted-foreground">{userData.email}</div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{user.company_name}</div>
+                        <div className="font-medium">{userData.company_name || "Sin especificar"}</div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{user.plan_name}</div>
-                          <div className="text-sm text-muted-foreground">{formatCurrency(user.plan_price)}/mes</div>
+                        <div className="font-medium">{formatCurrency(userData.monthly_payment)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Máx. {userData.max_stores} {userData.max_stores === 1 ? 'tienda' : 'tiendas'}
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(user)}</TableCell>
                       <TableCell>
-                        <div className="text-sm">{formatDate(user.created_at)}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{userData.store_count}</span>
+                          <span className="text-xs text-muted-foreground">
+                            / {userData.max_stores}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(userData)}</TableCell>
+                      <TableCell>
+                        {getDaysDisplay(userData)}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {formatDate(user.subscription_end)}
-                          {user.days_until_expiry <= 7 && user.days_until_expiry > 0 && (
-                            <div className="text-xs text-orange-600">{user.days_until_expiry} días restantes</div>
-                          )}
+                          {userData.last_payment_date ? formatDate(userData.last_payment_date) : "Nunca"}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{user.store_count}</Badge>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDate(userData.created_at)}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -325,34 +351,43 @@ export default function AdminUsersPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ver Detalles
-                            </DropdownMenuItem>
+                          <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
-                              onClick={() => toggleUserStatus(user.id, user.is_active)}
-                              className={user.is_active ? "text-destructive" : "text-green-600"}
+                              onClick={() => toggleUserStatus(userData.id, userData.is_active)}
+                              className="flex items-center"
                             >
-                              {user.is_active ? (
+                              {userData.is_active ? (
                                 <>
-                                  <UserX className="mr-2 h-4 w-4" />
+                                  <UserX className="h-4 w-4 mr-2" />
                                   Desactivar
                                 </>
                               ) : (
                                 <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  <UserCheck className="h-4 w-4 mr-2" />
                                   Activar
                                 </>
                               )}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updatePaymentStatus(user.id, "paid")}>
-                              <DollarSign className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem
+                              onClick={() => markAsPaid(userData.id, userData.monthly_payment)}
+                              className="flex items-center"
+                            >
+                              <DollarSign className="h-4 w-4 mr-2" />
                               Marcar como Pagado
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updatePaymentStatus(user.id, "overdue")}>
-                              <Calendar className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem
+                              onClick={() => updatePaymentStatus(userData.id, "en_deuda")}
+                              className="flex items-center"
+                            >
+                              <Calendar className="h-4 w-4 mr-2" />
                               Marcar en Deuda
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => updatePaymentStatus(userData.id, "deshabilitado")}
+                              className="flex items-center"
+                            >
+                              <UserX className="h-4 w-4 mr-2" />
+                              Deshabilitar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -362,36 +397,36 @@ export default function AdminUsersPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
 
-            {/* Paginación */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6">
-                <div className="text-sm text-muted-foreground">
-                  Página {currentPage} de {totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

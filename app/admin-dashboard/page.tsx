@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, BarChart3, Package, LogOut, Store, DollarSign, AlertTriangle } from "lucide-react"
+import { Users, BarChart3, Package, LogOut, Store, DollarSign, AlertTriangle, TrendingUp, Calendar } from "lucide-react"
 
 interface AdminStats {
   users: {
     total_users: number
     active_users: number
-    overdue_users: number
+    debt_users: number
+    disabled_users: number
+    up_to_date_users: number
     new_users_month: number
   }
   stores: {
@@ -22,13 +24,28 @@ interface AdminStats {
     total_products: number
   }
   revenue: {
+    total_revenue: number
     monthly_revenue: number
-    paying_users: number
+    weekly_revenue: number
+    total_payments: number
   }
-  planBreakdown: Array<{
-    plan_name: string
-    user_count: number
-    plan_revenue: number
+  projected: {
+    projected_monthly_revenue: number
+    average_monthly_payment: number
+  }
+  topUsers: Array<{
+    name: string
+    company_name: string
+    monthly_payment: number
+    max_stores: number
+    payment_status: string
+  }>
+  recentPayments: Array<{
+    amount: number
+    payment_date: string
+    payment_method: string
+    user_name: string
+    company_name: string
   }>
 }
 
@@ -87,21 +104,39 @@ export default function AdminDashboard() {
     try {
       console.log("Logging out admin user")
       await fetch("/api/auth/logout", { method: "POST" })
-      // Forzar navegación al login con parámetro especial
       window.location.href = "/login?logout=1"
     } catch (error) {
       console.error("Logout error:", error)
-      // En caso de error, forzar navegación
       window.location.href = "/login?logout=1"
     }
   }
 
+  const formatCurrency = (amount: number | null | undefined | string) => {
+    if (amount === null || amount === undefined) {
+      return "$0.00"
+    }
+    
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+    
+    if (isNaN(numAmount)) {
+      return "$0.00"
+    }
+    
+    return `$${numAmount.toFixed(2)}`
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("es-ES")
+  }
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p>Cargando...</p>
+      <div className="container mx-auto p-6 max-w-7xl">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold mb-2">Cargando dashboard...</h2>
+            <p className="text-muted-foreground">Obteniendo estadísticas del sistema</p>
+          </div>
         </div>
       </div>
     )
@@ -111,229 +146,270 @@ export default function AdminDashboard() {
     return null
   }
 
-  // Mostrar dashboard aunque no haya stats (con valores por defecto)
-  const defaultStats = {
-    users: {
-      total_users: 0,
-      active_users: 0,
-      overdue_users: 0,
-      new_users_month: 0
-    },
-    stores: {
-      total_stores: 0,
-      active_stores: 0
-    },
-    products: {
-      total_products: 0
-    },
-    revenue: {
-      monthly_revenue: 0,
-      paying_users: 0
-    },
-    planBreakdown: []
-  }
-
-  const currentStats = stats || defaultStats
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">P</span>
-            </div>
-            <div>
-              <h1 className="font-bold text-xl">Pedi Solutions</h1>
-              <p className="text-sm text-muted-foreground">Panel de Administrador</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Bienvenido, {user.email}</span>
-            <Button variant="ghost" size="sm" asChild>
-              <a href="/" target="_blank" rel="noopener noreferrer">
-                Ver Sitio Web
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
-            </Button>
-          </div>
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard Administrativo</h1>
+          <p className="text-muted-foreground mt-1">
+            Bienvenido, {user.first_name}. Aquí tienes el resumen de tu plataforma.
+          </p>
         </div>
-      </header>
+        <Button variant="outline" onClick={handleLogout}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Cerrar Sesión
+        </Button>
+      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-                <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Dashboard de Administrador</h2>
-          <p className="text-muted-foreground">Panel de control y estadísticas del sistema</p>
-          {!stats && (
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm font-medium">Advertencia: No se pudieron cargar las estadísticas en tiempo real. Se muestran valores por defecto.</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Usuarios Activos</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{currentStats.users.active_users}</div>
-              <p className="text-xs text-muted-foreground">{currentStats.users.new_users_month} nuevos este mes</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tiendas Activas</CardTitle>
-              <Store className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{currentStats.stores.active_stores}</div>
-              <p className="text-xs text-muted-foreground">de {currentStats.stores.total_stores} registradas</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ingresos Mensuales</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${currentStats.revenue.monthly_revenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">{currentStats.revenue.paying_users} usuarios pagando</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Usuarios en Deuda</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">{currentStats.users.overdue_users}</div>
-              <p className="text-xs text-muted-foreground">Requieren atención inmediata</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Plan Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribución por Planes</CardTitle>
-              <CardDescription>Usuarios activos por tipo de plan</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {currentStats.planBreakdown.map((plan) => (
-                  <div key={plan.plan_name} className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{plan.plan_name}</div>
-                      <div className="text-sm text-muted-foreground">{plan.user_count} usuarios</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">${plan.plan_revenue.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">ingresos</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen General</CardTitle>
-              <CardDescription>Métricas clave de la plataforma</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Total de Usuarios</span>
-                  <span className="font-medium">{currentStats.users.total_users}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Total de Productos</span>
-                  <span className="font-medium">{currentStats.products.total_products}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Tasa de Actividad</span>
-                  <span className="font-medium">
-                    {currentStats.users.total_users > 0 
-                      ? Math.round((currentStats.users.active_users / currentStats.users.total_users) * 100)
-                      : 0}%
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link href="/admin-dashboard/users">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-primary">
-                  <Users className="w-5 h-5" />
-                  Gestionar Usuarios
-                </CardTitle>
-                <CardDescription>Administra cuentas de usuarios y permisos</CardDescription>
+      {stats ? (
+        <div className="space-y-8">
+          {/* Revenue Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <Button className="w-full">Acceder</Button>
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(stats.revenue.total_revenue)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.revenue.total_payments} pagos registrados
+                </p>
               </CardContent>
             </Card>
-          </Link>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos Este Mes</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(stats.revenue.monthly_revenue)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Semana actual: {formatCurrency(stats.revenue.weekly_revenue)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Proyección Mensual</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">
+                  {formatCurrency(stats.projected.projected_monthly_revenue)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Promedio: {formatCurrency(stats.projected.average_monthly_payment)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Usuarios Al Día</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {stats.users.up_to_date_users}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  De {stats.users.total_users} usuarios totales
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* User Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Usuarios en Deuda</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {stats.users.debt_users}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Requieren seguimiento
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Usuarios Deshabilitados</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {stats.users.disabled_users}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Suspendidos por falta de pago
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Nuevos Este Mes</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {stats.users.new_users_month}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Usuarios registrados
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Platform Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tiendas Activas</CardTitle>
+                <Store className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.stores.active_stores}</div>
+                <p className="text-xs text-muted-foreground">
+                  De {stats.stores.total_stores} tiendas totales
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Productos Activos</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.products.total_products}</div>
+                <p className="text-xs text-muted-foreground">
+                  En todas las tiendas
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Users and Recent Payments */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mejores Clientes</CardTitle>
+                <CardDescription>Usuarios con mayor pago mensual</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.topUsers.map((user, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {user.company_name || 'Sin empresa'} • {user.max_stores} tiendas
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{formatCurrency(user.monthly_payment)}</div>
+                        <div className={`text-xs ${
+                          user.payment_status === 'al_dia' ? 'text-green-600' :
+                          user.payment_status === 'en_deuda' ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {user.payment_status === 'al_dia' ? 'Al día' :
+                           user.payment_status === 'en_deuda' ? 'En deuda' : 'Deshabilitado'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pagos Recientes</CardTitle>
+                <CardDescription>Últimas transacciones registradas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.recentPayments.map((payment, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{payment.user_name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {payment.company_name || 'Sin empresa'} • {payment.payment_method}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{formatCurrency(payment.amount)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(payment.payment_date)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Actions */}
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Monitorear Pedidos
-              </CardTitle>
-              <CardDescription>Supervisa todos los pedidos en tiempo real</CardDescription>
+              <CardTitle>Acciones Rápidas</CardTitle>
+              <CardDescription>Herramientas de administración</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full" disabled>
-                Próximamente
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Reportes y Analytics
-              </CardTitle>
-              <CardDescription>Visualiza métricas y genera reportes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" disabled>
-                Próximamente
-              </Button>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Link href="/admin-dashboard/users">
+                  <Button className="w-full" variant="outline">
+                    <Users className="h-4 w-4 mr-2" />
+                    Gestionar Usuarios
+                  </Button>
+                </Link>
+                <Link href="/admin-dashboard/reports">
+                  <Button className="w-full" variant="outline">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Ver Reportes
+                  </Button>
+                </Link>
+                <Link href="/admin-dashboard/settings">
+                  <Button className="w-full" variant="outline">
+                    <Package className="h-4 w-4 mr-2" />
+                    Configuración
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Back to Landing */}
-        <div className="mt-8 text-center">
-          <Link href="/" className="text-primary hover:underline">
-            ← Volver a la página principal
-          </Link>
-        </div>
-      </main>
+      ) : (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Error al cargar estadísticas</h3>
+              <p className="text-muted-foreground mb-4">
+                No se pudieron obtener las estadísticas del sistema
+              </p>
+              <Button onClick={fetchStats}>
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

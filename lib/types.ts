@@ -1,17 +1,18 @@
-export interface UserPlan {
+export interface PaymentRecord {
   id: number
-  name: string
-  price: number
-  max_stores: number
-  max_products_per_store: number
-  max_categories_per_store: number
-  features: {
-    analytics: boolean
-    custom_branding: boolean
-    priority_support: boolean
+  user_id: number
+  amount: number
+  payment_date: string
+  payment_method: "admin" | "credit_card" | "paypal" | "bank_transfer"
+  payment_details?: {
+    card_last_digits?: string
+    transaction_id?: string
+    reference?: string
   }
+  created_by_admin: boolean
+  admin_id?: number
+  notes?: string
   created_at: string
-  updated_at: string
 }
 
 export interface User {
@@ -19,26 +20,20 @@ export interface User {
   email: string
   password_hash: string
   role: "admin" | "user"
-  plan_id: number
   company_name: string
   first_name: string
   last_name: string
   phone?: string
   country_code?: string
   is_active: boolean
-  subscription_start: string
-  subscription_end: string
-  fecha_inicio_suscripcion?: string
-  dia_vencimiento?: number
-  ultimo_pago?: string
-  estado_suscripcion: "Activo" | "En deuda" | "En gracia" | "Bloqueado Parcial"
-  fecha_proximo_vencimiento?: string
-  dias_gracia_restantes: number
+  monthly_payment: number
+  max_stores: number
+  next_payment_due: string
+  days_overdue: number
   last_payment_date?: string
-  payment_status: "paid" | "pending" | "overdue"
+  payment_status: "al_dia" | "en_deuda" | "deshabilitado"
   created_at: string
   updated_at: string
-  plan?: UserPlan
 }
 
 export interface Store {

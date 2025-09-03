@@ -96,29 +96,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       users: (userStats as any[])[0],
-      revenue: {
-        ...(revenueStats as any[])[0],
-        total_revenue: parseFloat((revenueStats as any[])[0]?.total_revenue) || 0,
-        monthly_revenue: parseFloat((revenueStats as any[])[0]?.monthly_revenue) || 0,
-        weekly_revenue: parseFloat((revenueStats as any[])[0]?.weekly_revenue) || 0,
-        total_payments: parseInt((revenueStats as any[])[0]?.total_payments) || 0,
-      },
-      projected: {
-        ...(projectedRevenue as any[])[0],
-        projected_monthly_revenue: parseFloat((projectedRevenue as any[])[0]?.projected_monthly_revenue) || 0,
-        average_monthly_payment: parseFloat((projectedRevenue as any[])[0]?.average_monthly_payment) || 0,
-      },
+      revenue: (revenueStats as any[])[0],
+      projected: (projectedRevenue as any[])[0],
       stores: (storeStats as any[])[0],
       products: (productStats as any[])[0],
-      topUsers: (topUsers as any[]).map(user => ({
-        ...user,
-        monthly_payment: parseFloat(user.monthly_payment) || 0,
-        max_stores: parseInt(user.max_stores) || 0,
-      })),
-      recentPayments: (recentPayments as any[]).map(payment => ({
-        ...payment,
-        amount: parseFloat(payment.amount) || 0,
-      })),
+      topUsers,
+      recentPayments,
     })
   } catch (error) {
     console.error("Error fetching admin stats:", error)
