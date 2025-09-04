@@ -12,7 +12,7 @@ interface AdminStats {
     total_users: number
     active_users: number
     debt_users: number
-    disabled_users: number
+    inactive_users: number
     up_to_date_users: number
     new_users_month: number
   }
@@ -245,15 +245,15 @@ export default function AdminDashboard() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Usuarios Deshabilitados</CardTitle>
+                <CardTitle className="text-sm font-medium">Cuentas Inactivas</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {stats.users.disabled_users}
+                  {stats.users.inactive_users}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Suspendidos por falta de pago
+                  Cuentas desactivadas
                 </p>
               </CardContent>
             </Card>
@@ -324,10 +324,10 @@ export default function AdminDashboard() {
                         <div className="font-medium">{formatCurrency(user.monthly_payment)}</div>
                         <div className={`text-xs ${
                           user.payment_status === 'al_dia' ? 'text-green-600' :
-                          user.payment_status === 'en_deuda' ? 'text-yellow-600' : 'text-red-600'
+                          user.payment_status === 'en_deuda' ? 'text-yellow-600' : 'text-gray-600'
                         }`}>
                           {user.payment_status === 'al_dia' ? 'Al día' :
-                           user.payment_status === 'en_deuda' ? 'En deuda' : 'Deshabilitado'}
+                           user.payment_status === 'en_deuda' ? 'En deuda' : 'Estado desconocido'}
                         </div>
                       </div>
                     </div>

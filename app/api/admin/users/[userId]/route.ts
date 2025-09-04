@@ -28,7 +28,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     console.log("Admin access granted, proceeding with user update...")
 
     const body = await request.json()
+    console.log("Request body:", JSON.stringify(body, null, 2))
     const { is_active, payment_status, monthly_payment, mark_as_paid } = body
+    console.log("Parsed fields:", { is_active, payment_status, monthly_payment, mark_as_paid })
 
     // Verificar que el usuario existe y no es admin
     const userCheck = await executeQuery("SELECT id, role FROM users WHERE id = ?", [resolvedParams.userId])
@@ -47,11 +49,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       const paymentAmount = parseFloat(monthly_payment)
       const maxStores = Math.floor(paymentAmount / 10)
       
+      console.log("Processing payment:", { paymentAmount, maxStores, adminId: decoded.userId })
+      
       // Crear registro de pago
       await executeQuery(`
         INSERT INTO payment_records (user_id, amount, payment_date, payment_method, created_by_admin, admin_id, notes)
         VALUES (?, ?, CURDATE(), 'admin', true, ?, 'Pago registrado por administrador')
-      `, [resolvedParams.userId, paymentAmount, decoded.user_id])
+      `, [resolvedParams.userId, paymentAmount, decoded.userId])
 
       // Actualizar usuario con nueva fecha de vencimiento y estado
       await executeQuery(`
@@ -62,11 +66,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           last_payment_date = CURDATE(),
           next_payment_due = DATE_ADD(CURDATE(), INTERVAL 30 DAY),
           payment_status = 'al_dia',
+          account_status = 'activo',
           days_overdue = 0,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `, [paymentAmount, maxStores, resolvedParams.userId])
 
+      console.log("Payment processed successfully")
       return NextResponse.json({ 
         success: true, 
         message: "Pago registrado exitosamente",
@@ -79,14 +85,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updateFields: string[] = []
     const updateValues: any[] = []
 
+    // Actualizar is_active y account_status por separado
     if (typeof is_active === "boolean") {
-      updateFields.push("is_active = ?")
-      updateValues.push(is_active)
+      updateFields.push("is_active = ?", "account_status = ?")
+      updateValues.push(is_active, is_active ? "activo" : "inactivo")
     }
 
-    if (payment_status && ["al_dia", "en_deuda", "deshabilitado"].includes(payment_status)) {
+    // Actualizar payment_status por separado (sin afectar account_status)
+    if (payment_status && ["al_dia", "en_deuda"].includes(payment_status)) {
       updateFields.push("payment_status = ?")
       updateValues.push(payment_status)
+      // Si se marca como al_dia manualmente, resetear días de retraso
+      if (payment_status === "al_dia") {
+        updateFields.push("days_overdue = ?")
+        updateValues.push(0)
+      }
     }
 
     if (monthly_payment && typeof monthly_payment === "number") {
@@ -96,14 +109,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (updateFields.length === 0) {
+      console.log("No fields to update")
       return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 })
     }
 
     updateFields.push("updated_at = CURRENT_TIMESTAMP")
     updateValues.push(resolvedParams.userId)
 
-    await executeQuery(`UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`, updateValues)
+    const query = `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`
+    console.log("SQL Query:", query)
+    console.log("SQL Values:", updateValues)
 
+    await executeQuery(query, updateValues)
+
+    console.log("User updated successfully")
     return NextResponse.json({ success: true, message: "Usuario actualizado exitosamente" })
   } catch (error) {
     console.error("Error updating user:", error)

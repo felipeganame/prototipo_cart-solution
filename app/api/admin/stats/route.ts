@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
     const userStats = await executeQuery(`
       SELECT 
         COUNT(*) as total_users,
-        SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END) as active_users,
+        SUM(CASE WHEN account_status = 'activo' THEN 1 ELSE 0 END) as active_users,
         SUM(CASE WHEN payment_status = 'en_deuda' THEN 1 ELSE 0 END) as debt_users,
-        SUM(CASE WHEN payment_status = 'deshabilitado' THEN 1 ELSE 0 END) as disabled_users,
+        SUM(CASE WHEN account_status = 'inactivo' THEN 1 ELSE 0 END) as inactive_users,
         SUM(CASE WHEN payment_status = 'al_dia' THEN 1 ELSE 0 END) as up_to_date_users,
         SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_users_month
       FROM users 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(monthly_payment), 0) as projected_monthly_revenue,
         COALESCE(AVG(monthly_payment), 0) as average_monthly_payment
       FROM users 
-      WHERE role = 'user' AND payment_status = 'al_dia'
+      WHERE role = 'user' AND payment_status = 'al_dia' AND account_status = 'activo'
     `)
 
     // Estadísticas de tiendas
@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
         company_name,
         monthly_payment,
         max_stores,
-        payment_status
+        payment_status,
+        account_status
       FROM users 
       WHERE role = 'user' 
       ORDER BY monthly_payment DESC 

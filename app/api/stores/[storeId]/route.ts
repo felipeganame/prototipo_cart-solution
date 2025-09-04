@@ -46,16 +46,16 @@ export async function PUT(request: NextRequest, { params }: { params: { storeId:
       return NextResponse.json({ error: "Token inválido" }, { status: 401 })
     }
 
-    const { name, description, address, phone, whatsapp_number } = await request.json()
+    const { name, description, country, state_province, city, postal_code, street_address, phone, whatsapp_number } = await request.json()
 
     if (!name) {
       return NextResponse.json({ error: "El nombre de la tienda es requerido" }, { status: 400 })
     }
 
     await executeQuery(
-      `UPDATE stores SET name = ?, description = ?, address = ?, phone = ?, whatsapp_number = ?, updated_at = CURRENT_TIMESTAMP 
+      `UPDATE stores SET name = ?, description = ?, country = ?, state_province = ?, city = ?, postal_code = ?, street_address = ?, phone = ?, whatsapp_number = ?, updated_at = CURRENT_TIMESTAMP 
        WHERE id = ? AND user_id = ?`,
-      [name, description, address, phone, whatsapp_number, params.storeId, decoded.userId],
+      [name, description, country, state_province, city, postal_code, street_address, phone, whatsapp_number, params.storeId, decoded.userId],
     )
 
     return NextResponse.json({ success: true, message: "Tienda actualizada exitosamente" })

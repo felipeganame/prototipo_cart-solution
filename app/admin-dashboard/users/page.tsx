@@ -19,12 +19,13 @@ interface UserData {
   first_name: string
   last_name: string
   is_active: boolean
+  account_status: "activo" | "inactivo"
   monthly_payment: number
   max_stores: number
   next_payment_due: string
   days_overdue: number
   last_payment_date?: string
-  payment_status: "al_dia" | "en_deuda" | "deshabilitado" | "paid" | "pending" | "overdue"
+  payment_status: "al_dia" | "en_deuda"
   created_at: string
   store_count: number
   days_until_due: number
@@ -105,6 +106,7 @@ export default function AdminUsersPage() {
     if (!newPayment || isNaN(parseFloat(newPayment))) return
 
     try {
+      console.log('Marking as paid:', { userId, newPayment: parseFloat(newPayment) })
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PUT",
         headers: {
@@ -116,13 +118,20 @@ export default function AdminUsersPage() {
         }),
       })
 
+      console.log('Mark as paid response status:', response.status)
+      const responseData = await response.json()
+      console.log('Mark as paid response data:', responseData)
+
       if (response.ok) {
+        alert(`Pago registrado exitosamente: $${responseData.payment_amount}`)
         fetchUsers()
       } else {
-        console.error("Failed to mark as paid")
+        console.error("Failed to mark as paid:", responseData)
+        alert(`Error: ${responseData.error || "No se pudo registrar el pago"}`)
       }
     } catch (error) {
       console.error("Error marking as paid:", error)
+      alert("Error de red. Intenta de nuevo.")
     }
   }
 
@@ -146,8 +155,9 @@ export default function AdminUsersPage() {
     }
   }
 
-  const updatePaymentStatus = async (userId: number, status: "al_dia" | "en_deuda" | "deshabilitado") => {
+  const updatePaymentStatus = async (userId: number, status: "al_dia" | "en_deuda") => {
     try {
+      console.log('Updating payment status:', { userId, status })
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PUT",
         headers: {
@@ -158,11 +168,20 @@ export default function AdminUsersPage() {
         }),
       })
 
+      console.log('Update payment status response:', response.status)
+      const responseData = await response.json()
+      console.log('Update payment status data:', responseData)
+
       if (response.ok) {
+        alert(`Estado de pago actualizado a: ${status === 'al_dia' ? 'Al día' : 'En deuda'}`)
         fetchUsers()
+      } else {
+        console.error("Failed to update payment status:", responseData)
+        alert(`Error: ${responseData.error || "No se pudo actualizar el estado de pago"}`)
       }
     } catch (error) {
       console.error("Error updating payment status:", error)
+      alert("Error de red. Intenta de nuevo.")
     }
   }
 
@@ -170,18 +189,54 @@ export default function AdminUsersPage() {
     const statusMap = {
       al_dia: { variant: "success" as const, text: "Al día", color: "bg-green-100 text-green-800" },
       en_deuda: { variant: "warning" as const, text: "En deuda", color: "bg-yellow-100 text-yellow-800" },
-      deshabilitado: { variant: "destructive" as const, text: "Deshabilitado", color: "bg-red-100 text-red-800" },
       paid: { variant: "success" as const, text: "Al día", color: "bg-green-100 text-green-800" },
       pending: { variant: "warning" as const, text: "En deuda", color: "bg-yellow-100 text-yellow-800" },
-      overdue: { variant: "destructive" as const, text: "Deshabilitado", color: "bg-red-100 text-red-800" }
+      overdue: { variant: "warning" as const, text: "En deuda", color: "bg-yellow-100 text-yellow-800" }
     }
     
-    const status = statusMap[user.payment_status] || statusMap.pending
+    const status = statusMap[user.payment_status as keyof typeof statusMap] || statusMap.pending
     return (
       <Badge className={status.color}>
         {status.text}
       </Badge>
     )
+  }
+
+  const getAccountStatusBadge = (user: UserData) => {
+    const isActive = user.account_status === 'activo' || user.is_active
+    return (
+      <Badge className={isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+        {isActive ? "Activo" : "Inactivo"}
+      </Badge>
+    )
+  }
+
+  const updateAccountStatus = async (userId: number, isActive: boolean) => {
+    try {
+      console.log('Updating account status:', { userId, isActive })
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ is_active: isActive }),
+      })
+
+      console.log('Update account status response:', response.status)
+      const responseData = await response.json()
+      console.log('Update account status data:', responseData)
+
+      if (response.ok) {
+        alert(`Cuenta ${isActive ? 'activada' : 'desactivada'} exitosamente`)
+        fetchUsers() // Recargar la lista
+      } else {
+        console.error("Failed to update account status:", responseData)
+        alert(`Error: ${responseData.error || "No se pudo actualizar el estado de la cuenta"}`)
+      }
+    } catch (error) {
+      console.error("Error updating account status:", error)
+      alert("Error de red. Intenta de nuevo.")
+    }
   }
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -279,7 +334,8 @@ export default function AdminUsersPage() {
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="al_dia">Al día</SelectItem>
                 <SelectItem value="en_deuda">En deuda</SelectItem>
-                <SelectItem value="deshabilitado">Deshabilitado</SelectItem>
+                <SelectItem value="activo">Cuentas Activas</SelectItem>
+                <SelectItem value="inactivo">Cuentas Inactivas</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -295,7 +351,8 @@ export default function AdminUsersPage() {
                     <TableHead>Empresa</TableHead>
                     <TableHead>Pago Mensual</TableHead>
                     <TableHead>Tiendas</TableHead>
-                    <TableHead>Estado</TableHead>
+                    <TableHead>Estado Cuenta</TableHead>
+                    <TableHead>Estado Pago</TableHead>
                     <TableHead>Próximo Vencimiento</TableHead>
                     <TableHead>Último Pago</TableHead>
                     <TableHead>Registro</TableHead>
@@ -330,6 +387,7 @@ export default function AdminUsersPage() {
                           </span>
                         </div>
                       </TableCell>
+                      <TableCell>{getAccountStatusBadge(userData)}</TableCell>
                       <TableCell>{getStatusBadge(userData)}</TableCell>
                       <TableCell>
                         {getDaysDisplay(userData)}
@@ -382,13 +440,23 @@ export default function AdminUsersPage() {
                               <Calendar className="h-4 w-4 mr-2" />
                               Marcar en Deuda
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => updatePaymentStatus(userData.id, "deshabilitado")}
-                              className="flex items-center"
-                            >
-                              <UserX className="h-4 w-4 mr-2" />
-                              Deshabilitar
-                            </DropdownMenuItem>
+                            {userData.account_status === 'inactivo' || !userData.is_active ? (
+                              <DropdownMenuItem
+                                onClick={() => updateAccountStatus(userData.id, true)}
+                                className="flex items-center"
+                              >
+                                <UserCheck className="h-4 w-4 mr-2" />
+                                Reactivar Cuenta
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => updateAccountStatus(userData.id, false)}
+                                className="flex items-center"
+                              >
+                                <UserX className="h-4 w-4 mr-2" />
+                                Desactivar Cuenta
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

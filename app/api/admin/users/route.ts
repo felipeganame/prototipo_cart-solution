@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
         u.first_name,
         u.last_name,
         u.is_active,
+        u.account_status,
         u.monthly_payment,
         u.max_stores,
         u.next_payment_due,
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN stores s ON u.id = s.user_id
       WHERE u.role = 'user'
       GROUP BY u.id, u.email, u.company_name, u.first_name, u.last_name, 
-               u.is_active, u.monthly_payment, u.max_stores, u.next_payment_due,
+               u.is_active, u.account_status, u.monthly_payment, u.max_stores, u.next_payment_due,
                u.days_overdue, u.last_payment_date, u.payment_status, u.created_at
       ORDER BY u.created_at DESC
       ${limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''}

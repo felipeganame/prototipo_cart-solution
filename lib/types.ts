@@ -26,12 +26,13 @@ export interface User {
   phone?: string
   country_code?: string
   is_active: boolean
+  account_status: "activo" | "inactivo"
   monthly_payment: number
   max_stores: number
   next_payment_due: string
   days_overdue: number
   last_payment_date?: string
-  payment_status: "al_dia" | "en_deuda" | "deshabilitado"
+  payment_status: "al_dia" | "en_deuda"
   created_at: string
   updated_at: string
 }
@@ -41,7 +42,14 @@ export interface Store {
   user_id: number
   name: string
   description?: string
-  address?: string
+  address?: string // Mantener para compatibilidad
+  country?: string
+  state_province?: string
+  city?: string
+  postal_code?: string
+  street_address?: string // Mantener para compatibilidad
+  street_name?: string
+  street_number?: string
   phone?: string
   whatsapp_number?: string
   logo_url?: string

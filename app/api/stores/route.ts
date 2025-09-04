@@ -37,23 +37,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const decoded = verifyToken(token) as any
-    if (!decoded) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+    const decoded = await verifyToken(token) as any
+    console.log("Decoded token:", decoded)
+    
+    if (!decoded || !decoded.userId) {
+      return NextResponse.json({ error: "Token inválido o userId no encontrado" }, { status: 401 })
     }
 
-    const { name, description, address, phone, whatsapp_number } = await request.json()
+    const { name, description, country, state_province, city, postal_code, street_name, street_number, phone, whatsapp_number } = await request.json()
+
+    console.log("Creating store with data:", { name, description, country, state_province, city, postal_code, street_name, street_number, phone, whatsapp_number })
 
     if (!name) {
       return NextResponse.json({ error: "El nombre de la tienda es requerido" }, { status: 400 })
     }
 
-    // Verificar límites del plan
+    if (!country || !state_province || !city || !street_name || !street_number) {
+      return NextResponse.json({ error: "País, estado/provincia, ciudad, nombre de calle y número son requeridos" }, { status: 400 })
+    }
+
+    // Normalizar valores undefined a null para MySQL
+    const normalizedData = {
+      name: name || null,
+      description: description || null,
+      country: country || null,
+      state_province: state_province || null,
+      city: city || null,
+      postal_code: postal_code || null,
+      street_name: street_name || null,
+      street_number: street_number || null,
+      phone: phone || null,
+      whatsapp_number: whatsapp_number || null
+    }
+
+    console.log("Normalized data:", normalizedData)
+
+    // Verificar límites del plan - usar max_stores de la tabla users directamente
     const userQuery = `
-      SELECT u.*, up.max_stores 
-      FROM users u 
-      LEFT JOIN user_plans up ON u.plan_id = up.id 
-      WHERE u.id = ?
+      SELECT max_stores 
+      FROM users 
+      WHERE id = ?
     `
     const userResults = (await executeQuery(userQuery, [decoded.userId])) as any[]
 
@@ -62,11 +85,15 @@ export async function POST(request: NextRequest) {
     }
 
     const user = userResults[0]
+    console.log("User max_stores:", user.max_stores)
+    
     const currentStoresCount = (
       (await executeQuery("SELECT COUNT(*) as count FROM stores WHERE user_id = ? AND is_active = TRUE", [
         decoded.userId,
       ])) as any[]
     )[0].count
+
+    console.log("Current stores count:", currentStoresCount)
 
     if (currentStoresCount >= user.max_stores) {
       return NextResponse.json(
@@ -78,23 +105,50 @@ export async function POST(request: NextRequest) {
     // Generar código QR único
     const qrCode = `store_${decoded.userId}_${Date.now()}`
 
+    console.log("Creating store with QR code:", qrCode)
+
+    // Log de parámetros antes de la consulta SQL
+    const sqlParams = [
+      decoded.userId, 
+      normalizedData.name, 
+      normalizedData.description, 
+      normalizedData.country, 
+      normalizedData.state_province, 
+      normalizedData.city, 
+      normalizedData.postal_code, 
+      normalizedData.street_name, 
+      normalizedData.street_number, 
+      normalizedData.phone, 
+      normalizedData.whatsapp_number, 
+      qrCode
+    ]
+    
+    console.log("SQL Parameters:", sqlParams)
+    console.log("SQL Parameters types:", sqlParams.map(p => typeof p))
+
     const result = await executeQuery(
-      `INSERT INTO stores (user_id, name, description, address, phone, whatsapp_number, qr_code) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [decoded.userId, name, description, address, phone, whatsapp_number, qrCode],
+      `INSERT INTO stores (user_id, name, description, country, state_province, city, postal_code, street_name, street_number, phone, whatsapp_number, qr_code) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sqlParams,
     )
 
     const storeId = (result as any).insertId
+    console.log("Store created with ID:", storeId)
 
     return NextResponse.json({
       success: true,
       store: {
         id: storeId,
-        name,
-        description,
-        address,
-        phone,
-        whatsapp_number,
+        name: normalizedData.name,
+        description: normalizedData.description,
+        country: normalizedData.country,
+        state_province: normalizedData.state_province,
+        city: normalizedData.city,
+        postal_code: normalizedData.postal_code,
+        street_name: normalizedData.street_name,
+        street_number: normalizedData.street_number,
+        phone: normalizedData.phone,
+        whatsapp_number: normalizedData.whatsapp_number,
         qr_code: qrCode,
       },
     })

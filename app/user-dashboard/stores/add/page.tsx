@@ -20,7 +20,12 @@ export default function AddStorePage() {
   const { values, errors, touched, setValue, setFieldTouched, validateForm, validateSingleField } = useFormValidation({
     name: "",
     description: "",
-    address: "",
+    country: "",
+    state_province: "",
+    city: "",
+    postal_code: "",
+    street_name: "",
+    street_number: "",
     whatsapp_number: "",
   })
 
@@ -42,8 +47,28 @@ export default function AddStorePage() {
     description: {
       maxLength: 500,
     },
-    address: {
+    country: {
+      required: true,
+      maxLength: 100,
+    },
+    state_province: {
+      required: true,
+      maxLength: 100,
+    },
+    city: {
+      required: true,
+      maxLength: 100,
+    },
+    postal_code: {
+      maxLength: 20,
+    },
+    street_name: {
+      required: true,
       maxLength: 200,
+    },
+    street_number: {
+      required: true,
+      maxLength: 50,
     },
     whatsapp_number: {
       required: true,
@@ -56,12 +81,25 @@ export default function AddStorePage() {
     setSubmitError("")
 
     if (!validateForm(validationRules)) {
+      setSubmitError("Por favor completa todos los campos requeridos correctamente.")
       return
     }
 
     setIsLoading(true)
 
     try {
+      console.log("Submitting store data:", {
+        name: values.name,
+        description: values.description,
+        country: values.country,
+        state_province: values.state_province,
+        city: values.city,
+        postal_code: values.postal_code,
+        street_name: values.street_name,
+        street_number: values.street_number,
+        whatsapp_number: values.whatsapp_number,
+      })
+
       const response = await fetch("/api/stores", {
         method: "POST",
         headers: {
@@ -70,7 +108,12 @@ export default function AddStorePage() {
         body: JSON.stringify({
           name: values.name,
           description: values.description || null,
-          address: values.address || null,
+          country: values.country || null,
+          state_province: values.state_province || null,
+          city: values.city || null,
+          postal_code: values.postal_code || null,
+          street_name: values.street_name || null,
+          street_number: values.street_number || null,
           phone: null,
           whatsapp_number: values.whatsapp_number || null,
           logoUrl: logoData.logoUrl || null,
@@ -79,13 +122,17 @@ export default function AddStorePage() {
       })
 
       const data = await response.json()
+      console.log("API response:", data)
 
       if (response.ok) {
+        console.log("Store created successfully, redirecting...")
         router.push("/user-dashboard/stores")
       } else {
+        console.error("Error response:", data)
         setSubmitError(data.error || "Error al crear la tienda")
       }
     } catch (error) {
+      console.error("Network error:", error)
       setSubmitError("Error de conexión. Intenta nuevamente.")
     } finally {
       setIsLoading(false)
@@ -134,7 +181,7 @@ export default function AddStorePage() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Nombre de la tienda *</Label>
+                <Label htmlFor="name">Nombre de la tienda/restaurante/bar/local *</Label>
                 <div className="relative">
                   <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -174,23 +221,112 @@ export default function AddStorePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="address">Dirección</Label>
+                <Label htmlFor="country">País *</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="address"
+                    id="country"
                     type="text"
-                    placeholder="Av. Principal 123, Ciudad"
-                    value={values.address}
-                    onChange={(e) => setValue("address", e.target.value)}
+                    placeholder="Argentina"
+                    value={values.country}
+                    onChange={(e) => setValue("country", e.target.value)}
                     onBlur={() => {
-                      setFieldTouched("address")
-                      validateSingleField("address", validationRules.address)
+                      setFieldTouched("country")
+                      validateSingleField("country", validationRules.country)
                     }}
-                    className={cn("pl-10", errors.address && touched.address && "border-destructive")}
+                    className={cn("pl-10", errors.country && touched.country && "border-destructive")}
                   />
                 </div>
-                {errors.address && touched.address && <p className="text-sm text-destructive">{errors.address}</p>}
+                {errors.country && touched.country && <p className="text-sm text-destructive">{errors.country}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="state_province">Estado/Provincia *</Label>
+                  <Input
+                    id="state_province"
+                    type="text"
+                    placeholder="Córdoba"
+                    value={values.state_province}
+                    onChange={(e) => setValue("state_province", e.target.value)}
+                    onBlur={() => {
+                      setFieldTouched("state_province")
+                      validateSingleField("state_province", validationRules.state_province)
+                    }}
+                    className={cn(errors.state_province && touched.state_province && "border-destructive")}
+                  />
+                  {errors.state_province && touched.state_province && <p className="text-sm text-destructive">{errors.state_province}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="city">Ciudad *</Label>
+                  <Input
+                    id="city"
+                    type="text"
+                    placeholder="Córdoba"
+                    value={values.city}
+                    onChange={(e) => setValue("city", e.target.value)}
+                    onBlur={() => {
+                      setFieldTouched("city")
+                      validateSingleField("city", validationRules.city)
+                    }}
+                    className={cn(errors.city && touched.city && "border-destructive")}
+                  />
+                  {errors.city && touched.city && <p className="text-sm text-destructive">{errors.city}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="postal_code">Código Postal</Label>
+                  <Input
+                    id="postal_code"
+                    type="text"
+                    placeholder="5000"
+                    value={values.postal_code}
+                    onChange={(e) => setValue("postal_code", e.target.value)}
+                    onBlur={() => {
+                      setFieldTouched("postal_code")
+                      validateSingleField("postal_code", validationRules.postal_code)
+                    }}
+                    className={cn(errors.postal_code && touched.postal_code && "border-destructive")}
+                  />
+                  {errors.postal_code && touched.postal_code && <p className="text-sm text-destructive">{errors.postal_code}</p>}
+                </div>
+
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="street_name">Nombre de la Calle *</Label>
+                  <Input
+                    id="street_name"
+                    type="text"
+                    placeholder="Av. Principal, Calle 123, etc."
+                    value={values.street_name}
+                    onChange={(e) => setValue("street_name", e.target.value)}
+                    onBlur={() => {
+                      setFieldTouched("street_name")
+                      validateSingleField("street_name", validationRules.street_name)
+                    }}
+                    className={cn(errors.street_name && touched.street_name && "border-destructive")}
+                  />
+                  {errors.street_name && touched.street_name && <p className="text-sm text-destructive">{errors.street_name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="street_number">Número *</Label>
+                  <Input
+                    id="street_number"
+                    type="text"
+                    placeholder="123, 45A, etc."
+                    value={values.street_number}
+                    onChange={(e) => setValue("street_number", e.target.value)}
+                    onBlur={() => {
+                      setFieldTouched("street_number")
+                      validateSingleField("street_number", validationRules.street_number)
+                    }}
+                    className={cn(errors.street_number && touched.street_number && "border-destructive")}
+                  />
+                  {errors.street_number && touched.street_number && <p className="text-sm text-destructive">{errors.street_number}</p>}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -198,7 +334,7 @@ export default function AddStorePage() {
                 <CountryPhoneInput
                   value={values.whatsapp_number}
                   onChange={(value) => setValue("whatsapp_number", value)}
-                  placeholder="93513363008"
+                  placeholder="93510000000"
                   error={errors.whatsapp_number && touched.whatsapp_number ? errors.whatsapp_number : undefined}
                 />
                 {errors.whatsapp_number && touched.whatsapp_number && (
@@ -207,9 +343,6 @@ export default function AddStorePage() {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">
                     Los clientes enviarán sus pedidos a este número de WhatsApp
-                  </p>
-                  <p className="text-xs text-orange-600 font-medium">
-                    💡 Selecciona tu país y luego ingresa 11 números. Ejemplo: +54 93513363008
                   </p>
                 </div>
               </div>
