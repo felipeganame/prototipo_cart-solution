@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const decoded = await verifyToken(token) as any
-    if (!decoded) {
+    if (!decoded || !decoded.userId) {
       return NextResponse.json({ error: "Token inválido" }, { status: 401 })
     }
 

@@ -72,7 +72,7 @@ export default function AddStorePage() {
     },
     whatsapp_number: {
       required: true,
-      pattern: /^\+\d{1,4}\s?\d{11}$/, // Prefijo del país + exactamente 11 dígitos
+      pattern: /^\+\d{2,4}\s\d{8,15}$/, // Formato exacto del componente: +XX XXXXXXXX
     },
   }
 
@@ -80,7 +80,15 @@ export default function AddStorePage() {
     e.preventDefault()
     setSubmitError("")
 
-    if (!validateForm(validationRules)) {
+    console.log("Form values:", values)
+    console.log("Validation errors:", errors)
+    console.log("Touched fields:", touched)
+
+    const isValid = validateForm(validationRules)
+    console.log("Form validation result:", isValid)
+
+    if (!isValid) {
+      console.log("Validation failed, current errors:", errors)
       setSubmitError("Por favor completa todos los campos requeridos correctamente.")
       return
     }

@@ -38,6 +38,8 @@ export function useFormValidation(initialValues: Record<string, string>) {
           return "Ingresa un email válido"
         case "phone":
           return "Ingresa un número de teléfono válido"
+        case "whatsapp_number":
+          return "Ingresa un número de WhatsApp válido (ej: +54 93510000000)"
         case "password":
           return "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número"
         default:
