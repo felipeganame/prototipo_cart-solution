@@ -30,10 +30,9 @@ export default function QRCodePage() {
 
     setUser(userData)
 
-    // Generate unique store URL based on user
-    const storeId = userData.email.split("@")[0]
+    // Generate user stores URL (where customers select which store)
     const baseUrl = window.location.origin
-    setStoreUrl(`${baseUrl}/store/${storeId}`)
+    setStoreUrl(`${baseUrl}/user/${userData.id}/stores`)
   }, [router])
 
   const copyToClipboard = async () => {
@@ -81,7 +80,7 @@ export default function QRCodePage() {
             </Link>
             <div>
               <h1 className="font-bold text-xl">Mi Código QR</h1>
-              <p className="text-sm text-muted-foreground">Comparte tu tienda con tus clientes</p>
+              <p className="text-sm text-muted-foreground">Comparte tus tiendas con tus clientes</p>
             </div>
           </div>
         </div>
@@ -97,7 +96,7 @@ export default function QRCodePage() {
                 <QrCode className="w-5 h-5" />
                 Tu Código QR
               </CardTitle>
-              <CardDescription>Los clientes pueden escanear este código para acceder a tu tienda</CardDescription>
+              <CardDescription>Los clientes pueden escanear este código para ver tus sucursales</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <div className="bg-white p-8 rounded-lg border-2 border-dashed border-gray-300 mb-6">
@@ -118,9 +117,9 @@ export default function QRCodePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ExternalLink className="w-5 h-5" />
-                Enlace de tu Tienda
+                Enlace de tus Tiendas
               </CardTitle>
-              <CardDescription>Comparte este enlace directamente con tus clientes</CardDescription>
+              <CardDescription>Comparte este enlace directamente con tus clientes para que seleccionen una sucursal</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">

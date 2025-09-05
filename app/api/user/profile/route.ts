@@ -60,7 +60,14 @@ export async function GET(request: NextRequest) {
     let stores: any[] = []
     if (user.role === 'user') {
       console.log("Querying stores for user:", decoded.userId)
-      const storesQuery = `SELECT * FROM stores WHERE user_id = ? AND is_active = TRUE`
+      const storesQuery = `
+        SELECT id, name, description, whatsapp_number, 
+               created_at, updated_at, country, state_province, city, postal_code, 
+               street_name, street_number, street_address as address, qr_code
+        FROM stores 
+        WHERE user_id = ? AND is_active = TRUE 
+        ORDER BY created_at DESC
+      `
       stores = (await executeQuery(storesQuery, [decoded.userId])) as any[]
       console.log("Stores query results:", stores)
     }

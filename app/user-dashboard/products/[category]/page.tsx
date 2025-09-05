@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, Search, Trash2 } from "lucide-react"
+import { ArrowLeft, Search, Trash2, Plus, DollarSign } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { OptimizedImage } from "@/components/optimized-image"
+import { EditPriceModal } from "@/components/edit-price-modal"
 
 interface ProductType {
   id: number
@@ -39,7 +40,14 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<ProductType[]>([])
   const [categoryName, setCategoryName] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState("name")
+  const [sortBy, setSortBy] = useState<"name" | "price-asc" | "price-desc">("name")
+  const [editPriceModal, setEditPriceModal] = useState<{
+    isOpen: boolean
+    product: ProductType | null
+  }>({
+    isOpen: false,
+    product: null
+  })
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -103,6 +111,28 @@ export default function ProductsPage() {
     }
   }
 
+  const openEditPriceModal = (product: ProductType) => {
+    setEditPriceModal({
+      isOpen: true,
+      product: product
+    })
+  }
+
+  const closeEditPriceModal = () => {
+    setEditPriceModal({
+      isOpen: false,
+      product: null
+    })
+  }
+
+  const handlePriceUpdated = (updatedProduct: ProductType) => {
+    setProducts(products.map(product => 
+      product.id === updatedProduct.id 
+        ? { ...product, price: updatedProduct.price }
+        : product
+    ))
+  }
+
   const filteredProducts = products
     .filter(
       (product) =>
@@ -146,13 +176,19 @@ export default function ProductsPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <Link href="/user-dashboard/categories">
+              <Link href={`/user-dashboard/categories?storeId=${storeId}`}>
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
               <h1 className="font-bold text-xl">{categoryName}</h1>
             </div>
+            <Link href={`/user-dashboard/add-product?storeId=${storeId}&categoryId=${categoryId}`}>
+              <Button size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Producto
+              </Button>
+            </Link>
           </div>
 
           {/* Search Bar */}
@@ -199,32 +235,45 @@ export default function ProductsPage() {
                     <h3 className="font-bold text-lg mb-1">{product.name}</h3>
                     <p className="text-gray-600 text-sm mb-3">{product.description}</p>
                     <p className="text-red-600 font-bold text-xl mb-4">{formatPrice(product.price)}</p>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="w-full rounded-full">
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Eliminar Producto
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción eliminará permanentemente el producto "{product.name}" de tu catálogo. Esta
-                            acción no se puede deshacer.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteProduct(product.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Sí, eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    
+                    {/* Action buttons */}
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline" 
+                        className="w-full rounded-full"
+                        onClick={() => openEditPriceModal(product)}
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Cambiar Precio
+                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" className="w-full rounded-full">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar Producto
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción eliminará permanentemente el producto "{product.name}" de tu catálogo. Esta
+                              acción no se puede deshacer.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteProduct(product.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Sí, eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                   <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
                     {product.image_url ? (
@@ -257,6 +306,16 @@ export default function ProductsPage() {
           )}
         </div>
       </main>
+
+      {/* Edit Price Modal */}
+      {editPriceModal.product && (
+        <EditPriceModal
+          isOpen={editPriceModal.isOpen}
+          onClose={closeEditPriceModal}
+          product={editPriceModal.product}
+          onPriceUpdated={handlePriceUpdated}
+        />
+      )}
     </div>
   )
 }

@@ -1,3 +1,19 @@
+# 🗄️ Base de Datos - Estado Final
+
+## ✅ Configuración Simplificada
+
+La base de datos ha sido simplificada y consolidada en un único archivo de dump completo.
+
+### 📁 **Archivos en `/scripts/`:**
+- **`pedi_solutions_dump.sql`** - ✅ Dump completo (USAR ESTE)
+- **`README.md`** - ✅ Instrucciones de instalación
+- **`update-subscription-states.js`** - ✅ Script de mantenimiento
+
+### 🗑️ **Archivos eliminados:**
+- ~~Scripts 01-09~~ - Obsoletos (incluidos en el dump)
+
+---
+
 # Cambios Implementados - Separación de Dirección en Campos Atómicos
 
 ## Fecha: 4 de septiembre de 2025

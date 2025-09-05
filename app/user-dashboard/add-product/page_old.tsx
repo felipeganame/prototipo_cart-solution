@@ -15,6 +15,7 @@ import { ImageUpload } from "@/components/image-upload"
 interface CategoryType {
   id: number
   name: string
+  icon: string
 }
 
 export default function AddProductPage() {
@@ -100,72 +101,61 @@ export default function AddProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!storeId) {
-      setSubmitError("ID de tienda no válido")
-      return
-    }
-
-    if (!formData.name.trim()) {
-      setSubmitError("El nombre del producto es requerido")
-      return
-    }
-
-    if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
-      setSubmitError("El precio debe ser un número válido mayor a 0")
-      return
-    }
-
-    if (!formData.categoryId) {
-      setSubmitError("Selecciona una categoría")
-      return
-    }
-
     setIsLoading(true)
-    setSubmitError("")
+
+    // Validate form
+    const validationErrors: any = {}
+
+    if (!validateForm.productName(formData.name)) {
+      validationErrors.name = "El nombre del producto es requerido (mínimo 2 caracteres)"
+    }
+
+    if (!formData.description.trim()) {
+      validationErrors.description = "La descripción es requerida"
+    }
+
+    if (!validateForm.price(formData.price)) {
+      validationErrors.price = "Ingresa un precio válido (solo números y punto decimal)"
+    }
+
+    if (!formData.category) {
+      validationErrors.category = "Selecciona una categoría"
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setIsLoading(false)
+      return
+    }
 
     try {
-      const response = await fetch("/api/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          storeId: parseInt(storeId),
-          categoryId: parseInt(formData.categoryId),
-          name: formData.name,
-          description: formData.description,
-          price: parseFloat(formData.price),
-          imageUrl: formData.imageUrl || null,
-          imageId: formData.imageId || null,
-        }),
-      })
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      const data = await response.json()
-
-      if (response.ok) {
-        console.log("Product created successfully:", data)
-        router.push(`/user-dashboard/products/${formData.categoryId}?storeId=${storeId}`)
-      } else {
-        setSubmitError(data.error || "Error al crear el producto")
+      // Save product to localStorage (simulate database)
+      const existingProducts = JSON.parse(localStorage.getItem("userProducts") || "[]")
+      const newProduct = {
+        id: Date.now().toString(),
+        ...formData,
+        price: Number.parseFloat(formData.price),
+        createdAt: new Date().toISOString(),
+        userId: user.email,
       }
+
+      existingProducts.push(newProduct)
+      localStorage.setItem("userProducts", JSON.stringify(existingProducts))
+
+      // Redirect to categories
+      router.push("/user-dashboard/categories")
     } catch (error) {
-      console.error("Error creating product:", error)
-      setSubmitError("Error al crear el producto")
+      console.error("Error adding product:", error)
     } finally {
       setIsLoading(false)
     }
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p>Cargando...</p>
-        </div>
-      </div>
-    )
+    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>
   }
 
   return (
@@ -174,24 +164,25 @@ export default function AddProductPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href={`/user-dashboard/categories?storeId=${storeId}`}>
+            <Link href="/user-dashboard">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             </Link>
             <div>
               <h1 className="font-bold text-xl">Agregar Producto</h1>
-              <p className="text-sm text-muted-foreground">Nuevo producto para tu tienda</p>
+              <p className="text-sm text-muted-foreground">Añade un nuevo producto a tu catálogo</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Cerrar Sesión
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      {/* Form */}
+      <main className="container mx-auto px-4 py-6">
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardHeader>
@@ -199,13 +190,6 @@ export default function AddProductPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Error Message */}
-                {submitError && (
-                  <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                    <p className="text-sm text-destructive">{submitError}</p>
-                  </div>
-                )}
-
                 {/* Product Name */}
                 <div className="space-y-2">
                   <Label htmlFor="name">Nombre del Producto *</Label>
@@ -213,95 +197,86 @@ export default function AddProductPage() {
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="Ej: Hamburguesa Clásica, Vodka Premium, etc."
-                    required
+                    placeholder="Ej: Grey Goose Vodka Premium"
+                    className={errors.name ? "border-red-500" : ""}
                   />
+                  {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descripción</Label>
+                  <Label htmlFor="description">Descripción *</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleInputChange("description", e.target.value)}
-                    placeholder="Describe tu producto..."
+                    placeholder="Describe las características del producto..."
                     rows={3}
+                    className={errors.description ? "border-red-500" : ""}
                   />
+                  {errors.description && <p className="text-sm text-red-500">{errors.description}</p>}
                 </div>
 
                 {/* Price */}
                 <div className="space-y-2">
                   <Label htmlFor="price">Precio *</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
                       id="price"
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      type="text"
                       value={formData.price}
                       onChange={(e) => handleInputChange("price", e.target.value)}
                       placeholder="0.00"
-                      className="pl-8"
-                      required
+                      className={`pl-8 ${errors.price ? "border-red-500" : ""}`}
                     />
                   </div>
+                  {errors.price && <p className="text-sm text-red-500">{errors.price}</p>}
                 </div>
 
                 {/* Category */}
                 <div className="space-y-2">
-                  <Label>Categoría *</Label>
-                  <Select value={formData.categoryId} onValueChange={(value) => handleInputChange("categoryId", value)}>
-                    <SelectTrigger>
+                  <Label htmlFor="category">Categoría *</Label>
+                  <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                    <SelectTrigger className={errors.category ? "border-red-500" : ""}>
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
+                        <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {categories.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No hay categorías disponibles. <Link href={`/user-dashboard/add-category?storeId=${storeId}`} className="text-primary hover:underline">Crear una categoría</Link>
-                    </p>
-                  )}
+                  {errors.category && <p className="text-sm text-red-500">{errors.category}</p>}
                 </div>
 
-                {/* Image Upload */}
                 <div className="space-y-2">
-                  <Label>Imagen del Producto (Opcional)</Label>
+                  <Label>Imagen del Producto</Label>
                   <ImageUpload
-                    currentImageUrl={formData.imageUrl}
                     onImageUploaded={handleImageUploaded}
                     onImageRemoved={handleImageRemoved}
-                    className="aspect-square max-w-xs"
+                    currentImageUrl={formData.imageUrl}
+                    imageType="product"
+                    entityId={formData.name}
+                    maxSizeMB={5}
                   />
                 </div>
 
                 {/* Submit Button */}
-                <div className="flex gap-3 pt-6">
-                  <Button
-                    type="submit"
-                    disabled={isLoading || categories.length === 0}
-                    className="flex-1"
-                  >
+                <div className="flex gap-4">
+                  <Button type="submit" disabled={isLoading} className="flex-1">
                     {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Guardando...
-                      </div>
+                      <>Guardando...</>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Save className="w-4 h-4" />
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
                         Guardar Producto
-                      </div>
+                      </>
                     )}
                   </Button>
-                  <Link href={`/user-dashboard/categories?storeId=${storeId}`}>
+                  <Link href="/user-dashboard">
                     <Button type="button" variant="outline">
                       Cancelar
                     </Button>

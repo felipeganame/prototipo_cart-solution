@@ -15,6 +15,7 @@ import { ImageUpload } from "@/components/image-upload"
 interface CategoryType {
   id: number
   name: string
+  icon: string
 }
 
 export default function AddProductPage() {
@@ -259,7 +260,7 @@ export default function AddProductPage() {
                     <SelectContent>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id.toString()}>
-                          {category.name}
+                          {category.icon} {category.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

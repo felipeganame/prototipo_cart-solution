@@ -17,7 +17,6 @@ interface StoreType {
 interface CategoryType {
   id: number
   name: string
-  icon: string
   background_image_url?: string
   description?: string
 }
@@ -197,7 +196,6 @@ export default function CategoriesPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{category.icon}</span>
                         <span className="font-bold text-lg">{category.name}</span>
                       </div>
                       <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">

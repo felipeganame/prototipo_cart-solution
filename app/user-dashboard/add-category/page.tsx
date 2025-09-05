@@ -3,58 +3,63 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, LogOut, Save } from "lucide-react"
-import { validateForm } from "@/components/form-validation"
 import { ImageUpload } from "@/components/image-upload"
-
-const availableIcons = ["🥃", "🍺", "🍷", "🍸", "🥂", "🍻", "🧊", "🍾", "🥤", "☕"]
 
 export default function AddCategoryPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const storeId = searchParams.get("storeId")
+  
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<any>({})
+  const [submitError, setSubmitError] = useState("")
   const [formData, setFormData] = useState({
     name: "",
-    icon: "",
+    description: "",
     imageUrl: "",
     imageId: "",
   })
 
   useEffect(() => {
-    const currentUser = localStorage.getItem("currentUser")
-    if (!currentUser) {
+    fetchUserData()
+  }, [])
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch("/api/user/profile")
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+      } else {
+        router.push("/login")
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error)
       router.push("/login")
-      return
     }
+  }
 
-    const userData = JSON.parse(currentUser)
-    if (userData.role !== "user") {
-      router.push("/login")
-      return
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      router.push("/")
+    } catch (error) {
+      console.error("Logout error:", error)
+      router.push("/")
     }
-
-    setUser(userData)
-  }, [router])
-
-  const handleLogout = () => {
-    localStorage.removeItem("currentUser")
-    router.push("/")
   }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev: any) => ({ ...prev, [field]: "" }))
-    }
+    setSubmitError("") // Clear error when user starts typing
   }
 
   const handleImageUploaded = (imageUrl: string, imageId: string) => {
@@ -67,48 +72,46 @@ export default function AddCategoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-
-    // Validate form
-    const validationErrors: any = {}
-
-    if (!validateForm.categoryName(formData.name)) {
-      validationErrors.name = "El nombre de la categoría es requerido (mínimo 2 caracteres)"
-    }
-
-    if (!formData.icon) {
-      validationErrors.icon = "Selecciona un icono para la categoría"
-    }
-
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors)
-      setIsLoading(false)
+    
+    if (!storeId) {
+      setSubmitError("ID de tienda no válido")
       return
     }
 
+    if (!formData.name.trim()) {
+      setSubmitError("El nombre de la categoría es requerido")
+      return
+    }
+
+    setIsLoading(true)
+    setSubmitError("")
+
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          storeId: parseInt(storeId),
+          name: formData.name,
+          description: formData.description,
+          backgroundImageUrl: formData.imageUrl || null,
+          backgroundImageId: formData.imageId || null,
+        }),
+      })
 
-      // Save category to localStorage (simulate database)
-      const existingCategories = JSON.parse(localStorage.getItem("userCategories") || "[]")
-      const newCategory = {
-        id: formData.name.toLowerCase().replace(/\s+/g, "-"),
-        name: formData.name.toUpperCase(),
-        icon: formData.icon,
-        image: formData.imageUrl || "/abstract-categories.png",
-        imageId: formData.imageId,
-        createdAt: new Date().toISOString(),
-        userId: user.email,
+      const data = await response.json()
+
+      if (response.ok) {
+        console.log("Category created successfully:", data)
+        router.push(`/user-dashboard/categories?storeId=${storeId}`)
+      } else {
+        setSubmitError(data.error || "Error al crear la categoría")
       }
-
-      existingCategories.push(newCategory)
-      localStorage.setItem("userCategories", JSON.stringify(existingCategories))
-
-      // Redirect to categories
-      router.push("/user-dashboard/categories")
     } catch (error) {
-      console.error("Error adding category:", error)
+      console.error("Error creating category:", error)
+      setSubmitError("Error de conexión. Intenta nuevamente.")
     } finally {
       setIsLoading(false)
     }
@@ -149,54 +152,53 @@ export default function AddCategoryPage() {
               <CardTitle>Información de la Categoría</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Category Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nombre de la Categoría *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="Ej: Cocteles, Aperitivos, etc."
-                    className={errors.name ? "border-red-500" : ""}
-                  />
-                  {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error Message */}
+              {submitError && (
+                <div className="mb-6 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <p className="text-sm text-destructive">{submitError}</p>
                 </div>
+              )}
 
-                {/* Icon Selection */}
-                <div className="space-y-2">
-                  <Label>Icono de la Categoría *</Label>
-                  <div className="grid grid-cols-5 gap-3">
-                    {availableIcons.map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        onClick={() => handleInputChange("icon", icon)}
-                        className={`p-3 text-2xl border-2 rounded-lg hover:bg-gray-50 transition-colors ${
-                          formData.icon === icon ? "border-primary bg-primary/10" : "border-gray-200"
-                        }`}
-                      >
-                        {icon}
-                      </button>
-                    ))}
-                  </div>
-                  {errors.icon && <p className="text-sm text-red-500">{errors.icon}</p>}
-                </div>
+              {/* Category Name */}
+              <div className="space-y-2">
+                <Label htmlFor="name">Nombre de la Categoría *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  placeholder="Ej: Cocteles, Aperitivos, Hamburguesas, etc."
+                  required
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label>Imagen de Fondo (Opcional)</Label>
-                  <ImageUpload
-                    onImageUploaded={handleImageUploaded}
-                    onImageRemoved={handleImageRemoved}
-                    currentImageUrl={formData.imageUrl}
-                    imageType="category"
-                    entityId={formData.name}
-                    maxSizeMB={8}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Esta imagen se mostrará como fondo de la categoría. Recomendamos imágenes de alta calidad.
-                  </p>
-                </div>
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Descripción (Opcional)</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  placeholder="Describe brevemente esta categoría..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Image Upload */}
+              <div className="space-y-2">
+                <Label>Imagen de Fondo (Opcional)</Label>
+                <ImageUpload
+                  onImageUploaded={handleImageUploaded}
+                  onImageRemoved={handleImageRemoved}
+                  currentImageUrl={formData.imageUrl}
+                  imageType="category"
+                  entityId={formData.name}
+                  maxSizeMB={8}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Esta imagen se mostrará como fondo de la categoría. Recomendamos imágenes de alta calidad.
+                </p>
+              </div>
 
                 {/* Submit Button */}
                 <div className="flex gap-4">

@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const decoded = verifyToken(token) as any
-    if (!decoded) {
+    const decoded = await verifyToken(token) as any
+    if (!decoded || !decoded.userId) {
       return NextResponse.json({ error: "Token inválido" }, { status: 401 })
     }
 
@@ -54,12 +54,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const decoded = verifyToken(token) as any
-    if (!decoded) {
+    const decoded = await verifyToken(token) as any
+    if (!decoded || !decoded.userId) {
       return NextResponse.json({ error: "Token inválido" }, { status: 401 })
     }
 
-    const { storeId, name, description, icon, backgroundImageUrl, backgroundImageId } = await request.json()
+    const { storeId, name, description, backgroundImageUrl, backgroundImageId } = await request.json()
 
     if (!storeId || !name) {
       return NextResponse.json({ error: "ID de tienda y nombre son requeridos" }, { status: 400 })
@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await executeQuery(
-      `INSERT INTO categories (store_id, name, description, icon, background_image_url, sort_order) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [storeId, name, description, icon, backgroundImageUrl, currentCategoriesCount],
+      `INSERT INTO categories (store_id, name, description, background_image_url, sort_order) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [storeId, name, description, backgroundImageUrl, currentCategoriesCount],
     )
 
     const categoryId = (result as any).insertId
@@ -112,7 +112,6 @@ export async function POST(request: NextRequest) {
         id: categoryId,
         name,
         description,
-        icon,
         background_image_url: backgroundImageUrl,
       },
     })

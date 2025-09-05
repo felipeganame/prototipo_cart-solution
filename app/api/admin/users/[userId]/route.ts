@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { verifyToken } from "@/lib/auth"
-import { executeQuery } from "@/lib/database"
+import { executeQuery, getConnection } from "@/lib/database"
 
 // PUT - Actualizar un usuario
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
@@ -200,6 +200,107 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
   } catch (error) {
     console.error("Error fetching user details:", error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+  }
+}
+
+// DELETE - Eliminar usuario con todos sus datos en cascada
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  try {
+    console.log('=== Admin user delete API called ===')
+    const { userId } = await params
+    const token = request.cookies.get("auth-token")?.value
+
+    if (!token) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    const decoded = await verifyToken(token) as any
+    if (!decoded || decoded.role !== "admin") {
+      return NextResponse.json({ error: "Acceso denegado - Solo administradores" }, { status: 403 })
+    }
+
+    // Verificar que el usuario existe y no es admin
+    const userCheck = await executeQuery("SELECT id, role FROM users WHERE id = ?", [userId])
+    if ((userCheck as any[]).length === 0) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
+    }
+
+    const user = (userCheck as any[])[0]
+    if (user.role === "admin") {
+      return NextResponse.json({ error: "No se puede eliminar un usuario administrador" }, { status: 403 })
+    }
+
+    // Prevenir que el admin se elimine a sí mismo
+    if (decoded.userId == userId) {
+      return NextResponse.json({ 
+        error: "No puedes eliminarte a ti mismo" 
+      }, { status: 400 })
+    }
+
+    console.log(`Initiating cascade deletion for user ${userId}`)
+
+    // Iniciar transacción para eliminación en cascada
+    const connection = await getConnection()
+    
+    try {
+      await connection.beginTransaction()
+
+      // 1. Eliminar todos los productos de todas las categorías de todas las tiendas del usuario
+      const [productResult] = await connection.execute(
+        `UPDATE products p 
+         JOIN categories c ON p.category_id = c.id 
+         JOIN stores s ON c.store_id = s.id 
+         SET p.is_active = FALSE 
+         WHERE s.user_id = ?`,
+        [userId]
+      )
+      console.log(`Products deactivated: ${(productResult as any).affectedRows}`)
+
+      // 2. Eliminar todas las categorías de todas las tiendas del usuario
+      const [categoryResult] = await connection.execute(
+        `UPDATE categories c 
+         JOIN stores s ON c.store_id = s.id 
+         SET c.is_active = FALSE 
+         WHERE s.user_id = ?`,
+        [userId]
+      )
+      console.log(`Categories deactivated: ${(categoryResult as any).affectedRows}`)
+
+      // 3. Eliminar todas las tiendas del usuario
+      const [storeResult] = await connection.execute(
+        "UPDATE stores SET is_active = FALSE WHERE user_id = ?",
+        [userId]
+      )
+      console.log(`Stores deactivated: ${(storeResult as any).affectedRows}`)
+
+      // 4. Eliminar el usuario (soft delete)
+      await connection.execute(
+        "UPDATE users SET is_active = FALSE WHERE id = ?",
+        [userId]
+      )
+      console.log(`User deactivated: ${userId}`)
+
+      // Confirmar transacción
+      await connection.commit()
+      console.log("Cascade deletion completed successfully")
+
+      return NextResponse.json({ 
+        success: true, 
+        message: "Usuario y todos sus datos eliminados exitosamente" 
+      })
+
+    } catch (error) {
+      // Revertir en caso de error
+      await connection.rollback()
+      console.error("Rolling back transaction due to error:", error)
+      throw error
+    } finally {
+      connection.release()
+    }
+
+  } catch (error) {
+    console.error("Error deleting user:", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
